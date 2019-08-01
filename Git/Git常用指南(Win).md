@@ -43,3 +43,41 @@ $ git commit -m "wrote a readme file"			# -m 后是本次提交的说明
 
 这个在实际开发中会有重要作用
 
+
+
+### 5. 远程仓库
+
+#### 添加远程仓库
+
+```bash
+git remote add origin [url]
+```
+
+#### 上传
+
+第一次上传文件：由于远程库是空的，我们第一次推送`master`分支时，加上了`-u`参数，Git不但会把本地的`master`分支内容推送的远程新的`master`分支，还会把本地的`master`分支和远程的`master`分支关联起来，在以后的推送或者拉取时就可以简化命令。
+
+```bash
+git push -u origin master		#第一次上传
+```
+
+之后上传
+
+```bash
+git push origin master			#仓库不为空
+```
+
+#### 下拉
+
+`git pull` 命令基本上就是 `git fetch` 和 `git merge` 命令的组合体，Git 从指定的远程仓库中抓取内容，然后马上尝试将其合并进你所在的分支中。
+
+#### 克隆
+
+```bash
+git clone [url]
+```
+
+
+
+### 6. 分支管理
+
