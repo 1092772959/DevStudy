@@ -83,7 +83,7 @@ Spring中配置文件xml放在resource目录下
 
 
 ```java
-@Test
+	@Test
     public void test7(){
         //1.获取核心容器对象
         ApplicationContext ac = new ClassPathXmlApplicationContext("bean.xml");
@@ -220,6 +220,22 @@ public static void main(String[] args) {
 若ac是ApplicationContext接口类型，则Bean对象不会执行销毁操作。因为容器并不会销毁，而是在main函数结束时直接在内存中被释放。
 
 若Bean对象采用**多例**模式，则该类对象的销毁不由Spring负责，而是由java的垃圾回收机制销毁。在长时间没有访问且没有被其他对象引用时，该类对象会被垃圾回收机制销毁。
+
+
+
+#### 实例化过程(面试)
+
+要想获取到一个bean对象，得先通过BeanFactory的getBean()方法获取，期间会经过一系列步骤来实例化这个bean对象：
+
+第一步：调用Bean的默认构造方法（当然也可以是指定的其它构造方法），生成bean实例：bean1。
+
+第二步：检查Bean配置文件中是否注入了Bean的属性值，如果有注入，则在bean1实例的基础上对其属性进行注入，把原来的bean1给覆盖掉形成新的bean实例：bean2。
+
+第三步：检查Bean是否实现了InitializingBean接口，如果实现了此接口，则调用afterPropertiesSet()方法对bean2进行相应操作后，把bean2覆盖形成新的bean实例：bean3。
+
+第四步：检查Bean配置文件中是否指定了init-method此属性，如果已指定，则调用此属性对应方法并对bean3进行相应操作后，最终把bean3覆盖形成新的实例：bean4。
+
+通过上面的步骤我们发现，Spring实例一个bean时，这个bean是在不断的变化的。
 
 
 
@@ -456,12 +472,10 @@ private String[] myStrs;
 
 ```java
  public interface IAccountDao {
-  
       void saveAccount();
   }
 
   public interface IAccountService {
-  
       /**
        * 模拟保存账户
        */
@@ -481,11 +495,9 @@ private String[] myStrs;
       @Qualifier("accountDao2")
       private IAccountDao accountDao = null;
   
-  
       public void  saveAccount() {
           accountDao.saveAccount();
       }
-  
   }
 
   @Repository("accountDao1")
@@ -494,7 +506,6 @@ private String[] myStrs;
       public void  saveAccount() {
           System.out.println("对象创建了111");
       }
-  
   }
 
   @Repository("accountDao2")
@@ -560,7 +571,7 @@ private IAccountDao acountDao = null;
 - 作用：在按照类型注入的基础上再按照名称注入，它在给类成员注入时不能单独使用，但是在给方法参数注入 时可以。
 - 属性：value : 用于指定注入的 bean 的 id
 
-3）匹配类型——写法二
+3）匹配类型冲突——写法二
 
 ```java
 @Resource(name="accountDao2")

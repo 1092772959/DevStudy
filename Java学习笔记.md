@@ -85,15 +85,16 @@ outer:for(int i=101; i<150;++i){
 
 #### 内存分析
 
-Java虚拟机的内存可分为三个区域：栈stack、堆heap、方法区method area
+Java虚拟机的内存可分为三个区域：栈stack、堆heap、方法区method area、程序计数器、本地方法栈(Native Method Stack)
 
 栈：
 
 1. 描述的是**方法执行的内存模型**，每个方法被调用都会创建一个栈帧（存储局部变量、操作数、方法出口等）
-2. JVM为**每个线程**创建一个栈，用于存放该线程执行方法的信息（实参、局部变量等）
-3. 栈属于**线程私有**，不能实现线程间共享。
+2. 局部变量表中存放了编译期间可知的各种基本数据类型和引用对象（maybe一个指向对象起始地址的引用指针），float和double占两个局部变量空间，其余只占一个。
+3. JVM为**每个线程**创建一个栈，用于存放该线程执行方法的信息（实参、局部变量等），栈属于**线程私有**，不能实现线程间共享。
 4. FILO
 5. 由系统自动分配，**速度快**！栈是一个**连续**的内存空间。
+6. 线程请求深度大于虚拟机栈所允许的深度，将抛出StackOverflowErrow；若虚拟机栈动态扩展时无法申请到足够的内存就会抛出OutOfMemoryError异常。
 
 堆：
 
@@ -106,6 +107,18 @@ Java虚拟机的内存可分为三个区域：栈stack、堆heap、方法区meth
 1. JVM只有一个方法区，被**所有线程共享**。
 2. 方法区实际也是堆，只是用于存储类、常量相关的信息
 3. 用来存放程序中永远不变或唯一的内容（代码、类信息、静态变量、字符串常量）
+
+本地方法栈：执行本地方法的栈，其他与虚拟机栈很相似
+
+程序计数器：
+
+可视作行号指示器。分支、跳转、循环、异常处理、线程恢复等都要依赖这个计数器来完成。多线程执行时，在任何一个确定时刻，一个处理器只会执行一个线程中的指令。为了线程切换后能恢复到正确的执行位置，每个线程都需要一个独立的计数器。java方法记录的是虚拟机字节码指令的地址。
+
+总结：
+
+其中程序计数器、虚拟机栈、本地方法栈是每个线程私有的内存空间，随线程而生，随线程而亡。例如栈中每一个栈帧中分配多少内存基本上在类结构确定是哪个时就已知了，因此这3个区域的内存分配和回收都是确定的，无需考虑内存回收的问题。
+
+但方法区和堆就不同了，一个接口的多个实现类需要的内存可能不一样，我们只有在程序运行期间才会知道会创建哪些对象，这部分内存的分配和回收都是动态的，GC主要关注的是这部分内存。
 
 ![](D:\技术\学习笔记\Java\内存模型.PNG)
 
@@ -286,6 +299,8 @@ equals：Object类中提供的方法，判断对象内容是否相同
 
 
 #### 封装
+
+访问权限
 
 | 修饰符    | 同一个类 | 同一个包 | 子类 | 所有类 |
 | --------- | -------- | -------- | ---- | ------ |
@@ -948,7 +963,7 @@ private static final Object PRESENT = new Object();
 hash = hash & (length - 1); 
 ```
 
-JDK1.8后，单个桶的长度大于8后，转换为红黑树。
+JDK1.8后，单个桶的长度大于8后，转换为红黑树。当数量小于6后，就把红黑树变回链表。
 
 查找：通过hash值找到index后，对链表中元素的key按次序equals匹配，直至找到。Java中规定，两个内容相同的对象（即equals为true）必须具有相同的hashCode。
 
@@ -980,11 +995,125 @@ static final int hash(Object key) {
 }
 ```
 
+HashMap中，null可以作为键，这样的键只有一个；可以有一个或多个键所对应的值为null。当get()方法返回null值时，可能是 HashMap中没有该键，也可能使该键所对应的值为null。因此，在HashMap中不能由get()方法来判断HashMap中是否存在某个键， 而应该用containsKey()方法来判断。
+
 ##### TreeMap
 
 红黑树的典型实现。效率比HashMap低，一般排序的时候才使用。
 
 若果要对自定义类进行排序，则该类需要实现Comparable接口。
+
+##### HashMap多线程问题
+
+线程不安全；可能造成死锁
+
+```java
+复制代码
+ public V put(K key, V value) {
+        if (key == null)
+            return putForNullKey(value);
+        int hash = hash(key.hashCode());
+        int i = indexFor(hash, table.length);
+        for (Entry<K,V> e = table[i]; e != null; e = e.next) { 	//374行处会导致死锁
+            Object k;
+            if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
+                V oldValue = e.value;
+                e.value = value;
+                e.recordAccess(this);
+                return oldValue;
+            }
+        }
+
+        modCount++;
+        addEntry(hash, key, value, i);
+        return null;
+    }
+```
+
+①互斥条件：链表上的节点同一时间此时被两个线程占用，两个线程占用访问节点的权利，符合该条件
+
+②请求和保持条件：Thread1保持着节点e1，又提出了占用节点e2(此时尚未释放e2)；而Thread2此时占用e2,又提出了占用节点e1，Thread1占用着Thread2接下来要用的e1,而Thread2又占用着Thread1接下来要用的e2，符合该条件
+
+③：不剥夺条件：线程是由自己的退出的，此时并没有任何中断机制（sleep或者wait方法或者interuppted中断），只能由自己释放，满足条件
+
+④：环路等待条件：e1、e2、e3等形成了资源的环形链条，满足该条件
+
+![img](https://images2018.cnblogs.com/blog/1066538/201803/1066538-20180330163632395-564709036.png)
+
+如果存在线程1和线程2，在rehash之前中，a、b、c在table[1]形成了链表，a的next指向了b，这时发生了put操作，两个线程同时进行了rehash。
+
+线程1在遍历Hash表元素中，取a.next时被挂起。
+
+线程2继续完成了rehash操作，重组了链表（头插，为了避免遍历链表），重组结束后，b.next指向了a。
+
+线程1继续执行，a.next又指向了b，环形链表因此产生了。
+
+*JDK8已经解决该问题
+
+##### HashTable
+
+也是一个散列表。它存储的内容是键值对(key-value)映射。
+
+继承自Dictionary，实现了Map、Cloneable、java.io.Serializable接口。
+
+线程安全。它的key、value都不可以为null。
+
+此外，Hashtable中的映射不是有序的。
+
+初始容量为11；默认加载因子为0.75；超过threshould就容量*2。哈希的之后与完max_int模表的size。
+
+##### HashTable和HashMap区别
+
+1、继承的父类不同：Hashtable继承自Dictionary类，而HashMap继承自AbstractMap类。但二者都实现了Map接口。
+
+2、线程安全性不同： Hashtable 中的方法是Synchronize的，而HashMap中的方法在缺省情况下是非Synchronize的。在多线程并发的环境下，可以直接使用Hashtable，不需要自己为它的方法实现同步，但使用HashMap时就必须要自己增加同步处理。
+
+```java
+Map m = Collections.synchronizedMap(new HashMap(...));
+```
+
+3、是否提供contains方法
+
+HashMap把Hashtable的contains方法去掉了，改成containsValue和containsKey，因为contains方法容易让人引起误解。
+
+4、key和value是否允许null值
+
+Hashtable中，key和value都不允许出现null值。但是如果在Hashtable中有类似put(null,null)的操作，编译同样可以通过，因为key和value都是Object类型，但运行时会抛出NullPointerException异常。
+HashMap中，null可以作为键，这样的键只有一个；可以有一个或多个键所对应的值为null。当get()方法返回null值时，可能是 HashMap中没有该键，也可能使该键所对应的值为null。因此，在HashMap中不能由get()方法来判断HashMap中是否存在某个键， 而应该用containsKey()方法来判断。
+
+5、两个遍历方式的内部实现上不同
+
+Hashtable、HashMap都使用了 Iterator。而由于历史原因，Hashtable还使用了Enumeration的方式 。Hashtable与HashMap另一个区别是HashMap的迭代器（Iterator）是fail-fast迭代器，而Hashtable的enumerator迭代器不是fail-fast的。所以当有其它线程改变了HashMap的结构（增加或者移除元素），将会抛出ConcurrentModificationException，但迭代器本身的remove()方法移除元素则不会抛出ConcurrentModificationException异常。但这并不是一个一定发生的行为，要看JVM。
+
+6、hash值不同
+
+哈希值的使用不同，HashTable直接使用对象的hashCode。而HashMap重新计算hash值。
+
+hashCode是jdk根据对象的地址或者字符串或者数字算出来的int类型的数值。
+
+Hashtable计算hash值，直接用key的hashCode()，而HashMap重新计算了key的hash值，Hashtable在求hash值对应的位置索引时，用取模运算，而HashMap在求位置索引时，则用与运算，且这里一般先用hash&0x7FFFFFFF后，再对length取模，&0x7FFFFFFF的目的是为了将负的hash值转化为正值，因为hash值有可能为负数，而&0x7FFFFFFF后，只有符号外改变，而后面的位都不变。
+
+ 7、内部实现使用的数组初始化和扩容方式不同
+
+​      HashTable在不指定容量的情况下的默认容量为11，而HashMap为16，Hashtable不要求底层数组的容量一定要为2的整数次幂，而HashMap则要求一定为2的整数次幂。
+
+​      Hashtable和HashMap它们两个内部实现方式的数组的初始大小和扩容的方式。HashTable中hash数组默认大小是11，增加的方式是 old*2+1。
+
+##### ConcurrentHashMap
+
+- 底层采用分段的数组+链表实现，线程**安全**
+- 通过把整个Map分为N个Segment，可以提供相同的线程安全，但是效率提升N倍，默认提升16倍。(读操作不加锁，由于HashEntry的value变量是 volatile的，也能保证读取到最新的值。)
+- Hashtable的synchronized是针对整张Hash表的，即每次锁住整张表让线程独占，ConcurrentHashMap允许多个修改操作并发进行，其关键在于使用了锁分离技术
+- 有些方法需要跨段，比如size()和containsValue()，它们可能需要锁定整个表而而不仅仅是某个段，这需要按顺序锁定所有段，操作完毕后，又按顺序释放所有段的锁
+- 扩容：段内扩容（段内元素超过该段对应Entry数组长度的75%触发扩容，不会对整个Map进行扩容），插入前检测需不需要扩容，有效避免无效扩容
+
+ConcurrentHashMap是使用了锁分段技术来保证线程安全的。
+
+**锁分段技术**：首先将数据分成一段一段的存储，然后给每一段数据配一把锁，当一个线程占用锁访问其中一个段数据的时候，其他段的数据也能被其他线程访问。 
+
+ConcurrentHashMap提供了与Hashtable和SynchronizedMap不同的锁机制。Hashtable中采用的锁机制是一次锁住整个hash表，从而在同一时刻只能由一个线程对其进行操作；而ConcurrentHashMap中则是一次锁住一个桶。
+
+ConcurrentHashMap默认将hash表分为16个桶，诸如get、put、remove等常用操作只锁住当前需要用到的桶。这样，原来只能一个线程进入，现在却能同时有16个写线程执行，并发性能的提升是显而易见的。
 
 #### 4. 迭代器
 
@@ -1036,3 +1165,1077 @@ for(Iterator<Integer> iterator = ss.iterator(); iterator.hasNext(); ){
 
 
 
+### 五、Java反射
+
+#### 1. 规范
+
+JAVA反射机制是在运行状态中，对于任意一个类，都能够知道这个类的所有属性和方法；对于任意一个对象，都能够调用它的任意一个方法和属性；这种动态获取的信息以及动态调用对象的方法的功能称为java语言的反射机制。
+
+要想解剖一个类,必须先要获取到该类的字节码文件对象。而解剖使用的就是Class类中的方法.所以先要获取到每一个字节码文件对应的Class类型的对象。
+
+反射就是把java类中的各种成分映射成一个个的Java对象。例如：一个类有：成员变量、方法、构造方法、包等等信息，利用反射技术可以对一个类进行解剖，把个个组成部分映射成一个个对象。
+
+如图是类的正常加载过程：反射的原理在与class对象。
+
+熟悉一下加载的时候：**Class对象**的由来是将class文件读入内存，并为之创建一个Class对象。
+
+![img](https://img-blog.csdn.net/20170513133210763)
+
+#### 2. Class类
+
+`Class` 类的实例表示正在运行的 Java 应用程序中的类和接口。也就是jvm中有N多的实例，每个类都有该Class对象。（包括基本数据类型）
+
+`Class` 没有公共构造方法。`Class` 对象是在加载类时由 Java 虚拟机以及通过调用类加载器中的**defineClass 方法**自动构造的。也就是这不需要我们自己去处理创建，JVM已经帮我们创建好了。
+
+#### 3. 反射的使用
+
+##### 1. 获取Class对象的三种方式
+
+1.1 Object ——> getClass(); 
+
+1.2 任何数据类型（包括基本数据类型）都有一个“静态”的class属性 
+
+1.3 通过Class类的静态方法：forName（String  className）(常用)
+
+```java
+/** 
+ * 获取Class对象的三种方式 
+ * 1 Object ——> getClass(); 
+ * 2 任何数据类型（包括基本数据类型）都有一个“静态”的class属性 
+ * 3 通过Class类的静态方法：forName（String  className）(常用) 
+ */  
+public class Fanshe {  
+    public static void main(String[] args) {  
+        //第一种方式
+        Student stu1 = new Student();//这一new 产生一个Student对象，一个Class对象。  
+        Class stuClass = stu1.getClass();//获取Class对象  
+        System.out.println(stuClass.getName());  
+          
+        //第二种方式
+        Class stuClass2 = Student.class;  
+        System.out.println(stuClass == stuClass2);//判断第一种方式获取的Class对象和第二种方式获取的是否是同一个  
+          
+        //第三种方式
+        try {  
+            Class stuClass3 = Class.forName(”fanshe.Student”);//注意此字符串必须是真实路径，就是带包名的类路径，包名.类名  
+            System.out.println(stuClass3 == stuClass2);//判断三种方式是否获取的是同一个Class对象  
+        } catch (ClassNotFoundException e) {  
+            e.printStackTrace();  
+        }     
+    }  
+```
+
+*在运行期间，一个类只有一个Class对象产生。三种方式常用第三种，第一种对象都有了还要反射干什么。第二种需要导入类的包，依赖太强，不导包就抛编译错误。一般都第三种，一个字符串可以传入也可写在配置文件中等多种方法。
+
+##### 2. 通过反射获取构造方法
+
+Student类：
+
+```java
+package fanshe;  
+  
+public class Student {  
+      
+    //—————构造方法——————-  
+    //（默认的构造方法）  
+    Student(String str){  
+        System.out.println(”(默认)的构造方法 s = ” + str);  
+    }  
+      
+    //无参构造方法  
+    public Student(){  
+        System.out.println(”调用了公有、无参构造方法执行了。。。”);  
+    }  
+      
+    //有一个参数的构造方法  
+    public Student(char name){  
+        System.out.println(”姓名：” + name);  
+    }  
+      
+    //有多个参数的构造方法  
+    public Student(String name ,int age){  
+        System.out.println(”姓名：”+name+“年龄：”+ age);//这的执行效率有问题，以后解决。  
+    }  
+      
+    //受保护的构造方法  
+    protected Student(boolean n){  
+        System.out.println(”受保护的构造方法 n = ” + n);  
+    }  
+      
+    //私有构造方法  
+    private Student(int age){  
+        System.out.println(”私有的构造方法   年龄：”+ age);  
+    }  
+}  
+```
+
+测试类：
+
+```java
+package fanshe;  
+  
+import java.lang.reflect.Constructor;  
+/* 
+ * 通过Class对象可以获取某个类中的：构造方法、成员变量、成员方法；并访问成员； 
+ *  
+ * 1.获取构造方法： 
+ *      1).批量的方法： 
+ *          public Constructor[] getConstructors()：所有”公有的”构造方法 
+            public Constructor[] getDeclaredConstructors()：获取所有的构造方法(包括私有、受保护、默认、公有) 
+      
+ *      2).获取单个的方法，并调用： 
+ *          public Constructor getConstructor(Class… parameterTypes):获取单个的”公有的”构造方法： 
+ *          public Constructor getDeclaredConstructor(Class… parameterTypes):获取”某个构造方法”可以是私有的，或受保护、默认、公有； 
+ *       
+ *          调用构造方法： 
+ *          Constructor–>newInstance(Object… initargs) 
+ */  
+public class Constructors {  
+  
+    public static void main(String[] args) throws Exception {  
+        //1.加载Class对象  
+        Class clazz = Class.forName(”fanshe.Student”);  
+          
+        //2.获取所有公有构造方法  
+        System.out.println("**********************所有公有构造方法*********************************");  
+        Constructor[] conArray = clazz.getConstructors();  
+        for(Constructor c : conArray){  
+            System.out.println(c);  
+        }  
+          
+        System.out.println("************所有的构造方法(包括：私有、受保护、默认、公有)***************");  
+        conArray = clazz.getDeclaredConstructors();  
+        for(Constructor c : conArray){  
+            System.out.println(c);  
+        }  
+          
+        System.out.println("*****************获取公有、无参的构造方法*******************************");  
+        Constructor con = clazz.getConstructor(null);  
+        //1>、因为是无参的构造方法所以类型是一个null,不写也可以：这里需要的是一个参数的类型，切记是类型  
+        //2>、返回的是描述这个无参构造函数的类对象。  
+      
+        System.out.println("con = ” + con");  
+        //调用构造方法  
+        Object obj = con.newInstance();  
+          
+        System.out.println("******************获取私有构造方法，并调用*******************************");  
+        con = clazz.getDeclaredConstructor(char.class);  
+        System.out.println(con);  
+        //调用构造方法  
+        con.setAccessible(true);				//暴力访问(忽略掉访问修饰符)  
+        obj = con.newInstance('男');  
+    }  
+}  
+```
+
+**调用方法：**
+
+1.获取构造方法：
+
+  1).批量的方法：
+public Constructor[] getConstructors()：所有”公有的”构造方法
+            public Constructor[] getDeclaredConstructors()：获取所有的构造方法(包括私有、受保护、默认、公有)
+
+  2).获取单个的方法，并调用：
+public Constructor getConstructor(Class… parameterTypes):获取单个的”公有的”构造方法：
+public Constructor getDeclaredConstructor(Class… parameterTypes):获取”某个构造方法”可以是私有的，或受保护、默认、公有；
+
+  调用构造方法：
+
+Constructor–>newInstance(Object… initargs)
+
+
+
+2、newInstance是 Constructor类的方法（管理构造函数的类）
+
+api的解释为：
+
+``newInstance(Object… initargs). 使用此 `Constructor` 对象表示的构造方法来创建该构造方法的声明类的新实例，并用指定的初始化参数初始化该实例。
+
+它的返回值是T类型，所以newInstance是创建了一个构造方法的声明类的新实例对象，并为之调用。
+
+##### 3. 获取成员变量
+
+实体类：
+
+```java
+public class Student {  
+    public Student(){  
+          
+    }  
+    //**********字段*************//  
+    public String name;  
+    protected int age;  
+    char sex;  
+    private String phoneNum;  
+      
+    @Override  
+    public String toString() {  
+        return “Student [name=” + name + “, age=” + age + “, sex=” + sex  
+                + ”, phoneNum=” + phoneNum + “]”;  
+    }  
+}
+```
+
+测试类：
+
+```java
+public class Fields {  
+  
+        public static void main(String[] args) throws Exception {  
+            //1.获取Class对象  
+            Class stuClass = Class.forName(”fanshe.field.Student”);  
+            //2.获取字段  
+            System.out.println("************获取所有公有的字段********************");  
+            Field[] fieldArray = stuClass.getFields();  
+            for(Field f : fieldArray){  
+                System.out.println(f);  
+            }  
+            System.out.println("************获取所有的字段(包括私有、受保护、默认的)********************");  
+            fieldArray = stuClass.getDeclaredFields();  
+            for(Field f : fieldArray){  
+                System.out.println(f);  
+            }  
+            System.out.println("*************获取公有字段**并调用***********************************");  
+            Field f = stuClass.getField("name");  
+            System.out.println(f);  
+            //获取一个对象  
+            Object obj = stuClass.getConstructor().newInstance();//产生Student对象–》Student stu = new Student();  
+            //为字段设置值  
+            f.set(obj, "刘德华");	//为Student对象中的name属性赋值–》stu.name = ”刘德华”  
+            //验证  
+            Student stu = (Student)obj;  
+            System.out.println("验证姓名：" + stu.name);  
+              
+            System.out.println("**************获取私有字段****并调用********************************");  
+            f = stuClass.getDeclaredField("phoneNum");  
+            System.out.println(f);  
+            f.setAccessible(true);//暴力反射，解除私有限定  
+            f.set(obj, "18888889999");  
+            System.out.println("验证电话：" + stu);  
+        }  
+    }
+```
+
+调用字段时：需要传递两个参数：
+
+Object obj = stuClass.getConstructor().newInstance();//产生Student对象–》Student stu = new Student();
+//为字段设置值
+f.set(obj, “刘德华”);//为Student对象中的name属性赋值–》stu.name = “刘德华”
+
+第一个参数：要传入设置的对象，第二个参数：要传入实参
+
+##### 4. 获取成员方法
+
+实体类：
+
+```java
+public class Student {  
+    //**************成员方法***************//  
+    public void show1(String s){  
+        System.out.println(”调用了：公有的，String参数的show1(): s = ” + s);  
+    }  
+    protected void show2(){  
+        System.out.println(”调用了：受保护的，无参的show2()”);  
+    }  
+    void show3(){  
+        System.out.println(”调用了：默认的，无参的show3()”);  
+    }  
+    private String show4(int age){  
+        System.out.println(”调用了，私有的，并且有返回值的，int参数的show4(): age = ” + age);  
+        return “abcd”;  
+    }  
+}  
+```
+
+测试类：
+
+```java
+import java.lang.reflect.Method;  
+  
+/* 
+ * 获取成员方法并调用： 
+ *  
+ * 1.批量的： 
+ *      public Method[] getMethods():获取所有”公有方法”；（包含了父类的方法也包含Object类） 
+ *      public Method[] getDeclaredMethods():获取所有的成员方法，包括私有的(不包括继承的) 
+ * 2.获取单个的： 
+ *      public Method getMethod(String name,Class<?>… parameterTypes): 
+ *                  参数： 
+ *                      name : 方法名； 
+ *                      Class … : 形参的Class类型对象 
+ *      public Method getDeclaredMethod(String name,Class<?>… parameterTypes) 
+ *  
+ *   调用方法： 
+ *      Method –> public Object invoke(Object obj,Object… args): 
+ *                  参数说明： 
+ *                  obj : 要调用方法的对象； 
+ *                  args:调用方式时所传递的实参； 
+ 
+): 
+ */  
+public class MethodClass {  
+  
+    public static void main(String[] args) throws Exception {  
+        //1.获取Class对象  
+        Class stuClass = Class.forName(”fanshe.method.Student”);  
+        //2.获取所有公有方法  
+        System.out.println(”***************获取所有的”公有“方法*******************”);  
+        stuClass.getMethods();  
+        Method[] methodArray = stuClass.getMethods();  
+        for(Method m : methodArray){  
+            System.out.println(m);  
+        }  
+        System.out.println(”***************获取所有的方法，包括私有的*******************”);  
+        methodArray = stuClass.getDeclaredMethods();  
+        for(Method m : methodArray){  
+            System.out.println(m);  
+        }  
+        System.out.println(”***************获取公有的show1()方法*******************”);  
+        Method m = stuClass.getMethod(”show1”, String.class);  
+        System.out.println(m);  
+        //实例化一个Student对象  
+        Object obj = stuClass.getConstructor().newInstance();  
+        m.invoke(obj, ”刘德华”);  
+          
+        System.out.println(”***************获取私有的show4()方法******************”);  
+        m = stuClass.getDeclaredMethod(”show4”, int.class);  
+        System.out.println(m);  
+        m.setAccessible(true);//解除私有限定  
+        Object result = m.invoke(obj, 20);//需要两个参数，一个是要调用的对象（获取有反射），一个是实参  
+        System.out.println("返回值：" + result); 
+    }  
+}  
+```
+
+由此可见：
+
+m = stuClass.getDeclaredMethod(“show4”, int.class);//调用制定方法（所有包括私有的），需要传入两个参数，第一个是调用的方法名称，第二个是方法的形参类型，切记是类型。
+Object result = m.invoke(obj, 20);	//需要两个参数，一个是要调用的对象（获取有反射），一个是实参
+System.out.println(“返回值：” + result);
+
+##### 5. 反射main方法
+
+```java
+public class Student {  
+  
+    public static void main(String[] args) {  
+        System.out.println(”main方法执行了。。。”);  
+    }  
+}  
+```
+
+测试类：
+
+```java
+public void Main{
+    public static void main(String[] args) {  
+        try {  
+            //1、获取Student对象的字节码  
+            Class clazz = Class.forName(”fanshe.main.Student”);  
+              
+            //2、获取main方法  
+             Method methodMain = clazz.getMethod("main", String[].class);//第一个参数：方法名称，第二个参数：方法形参的类型，  
+            //3、调用main方法  
+            // methodMain.invoke(null, new String[]{“a”,”b”,”c”});  
+             //第一个参数，对象类型，因为方法是static静态的，所以为null可以，第二个参数是String数组，这里要注意在jdk1.4时是数组，jdk1.5之后是可变参数  
+             //这里拆的时候将  new String[]{“a”,”b”,”c”} 拆成3个对象。。。所以需要将它强转。  
+             methodMain.invoke(null, (Object)new String[]{“a”,“b”,“c”});//方式一  
+            // methodMain.invoke(null, new Object[]{new String[]{“a”,”b”,”c”}});//方式二  
+              
+        } catch (Exception e) {  
+            e.printStackTrace();  
+        }  
+    }
+}
+
+```
+
+##### 6. 通过反射运行配置文件内容
+
+实体类：
+
+```java
+public class Student {  
+    public void show(){  
+        System.out.println(”is show()”);  
+    }  
+}  
+
+```
+
+配置文件pro.txt:
+
+```properties
+className = cn.fanshe.Student  
+methodName = show  
+
+```
+
+测试类：
+
+```java
+/* 
+ * 我们利用反射和配置文件，可以使：应用程序更新时，对源码无需进行任何修改 
+ * 我们只需要将新类发送给客户端，并修改配置文件即可 
+ */  
+public class Demo {  
+    public static void main(String[] args) throws Exception {  
+        //通过反射获取Class对象  
+        Class stuClass = Class.forName(getValue(”className”));//”cn.fanshe.Student”  
+        //2获取show()方法  
+        Method m = stuClass.getMethod(getValue(”methodName”));//show  
+        //3.调用show()方法  
+        m.invoke(stuClass.getConstructor().newInstance());  
+          
+    }  
+      
+    //此方法接收一个key，在配置文件中获取相应的value  
+    public static String getValue(String key) throws IOException{  
+        Properties pro = new Properties();//获取配置文件的对象  
+        FileReader in = new FileReader("pro.txt");//获取输入流  
+        pro.load(in);//将流加载到配置文件对象中  
+        in.close();  
+        return pro.getProperty(key);//返回根据key获取的value值  
+    }  
+}  
+
+```
+
+##### 7. 通过反射越过泛型检查
+
+```java
+/* 
+ * 通过反射越过泛型检查 
+ *  
+ * 例如：有一个String泛型的集合，怎样能向这个集合中添加一个Integer类型的值？ 
+ */  
+public class Demo {  
+    public static void main(String[] args) throws Exception{  
+        ArrayList<String> strList = new ArrayList<>();  
+        strList.add("aaa");  
+        strList.add("bbb");  
+          
+    //  strList.add(100);  
+        //获取ArrayList的Class对象，反向的调用add()方法，添加数据  
+        Class listClass = strList.getClass(); //得到 strList 对象的字节码 对象  
+        //获取add()方法  
+        Method m = listClass.getMethod("add", Object.class);  
+        //调用add()方法  
+        m.invoke(strList, 100);  
+          
+        //遍历集合  
+        for(Object obj : strList){  
+            System.out.println(obj);  
+        }  
+    }  
+}  
+```
+
+
+
+### 多线程
+
+#### volatile
+
+当一个变量定义为 volatile 之后，将具备两种特性：
+
+1.保证此变量对所有的线程的可见性，这里的“可见性”，如本文开头所述，当一个线程修改了这个变量的值，volatile 保证了新值能立即同步到主内存，以及每次使用前立即从主内存刷新。但普通变量做不到这点，普通变量的值在线程间传递均需要通过主内存（详见：[Java内存模型](http://www.cnblogs.com/zhengbin/p/6407137.html)）来完成。
+
+2.禁止指令重排序优化。有volatile修饰的变量，赋值后多执行了一个“load addl $0x0, (%esp)”操作，这个操作相当于一个**内存屏障**（指令重排序时不能把后面的指令重排序到内存屏障之前的位置），只有一个CPU访问内存时，并不需要内存屏障；（什么是指令重排序：是指CPU采用了允许将多条指令不按程序规定的顺序分开发送给各相应电路单元处理。）
+
+volatile可以保证可见性和有序性，一个例子：
+
+```java
+public class NoVisibility {
+    private static boolean ready;
+    private static int number;
+    private static class ReaderThread extends Thread {
+        @Override
+        public void run() {
+            while(!ready) {		//可能永远也看不到主线程中的修改，此时用volatile修饰ready即可解决这个问题
+                Thread.yield();
+            }
+            System.out.println(number);
+        }
+    }
+    public static void main(String[] args) {
+        new ReaderThread().start();
+        number = 42;
+        ready = true;
+    }
+}
+```
+
+| 是否重排序 | 第二个操作 |            |            |
+| ---------- | ---------- | ---------- | ---------- |
+| 第一个操作 | 普通读/写  | volatile读 | volatile写 |
+| 普通读/写  |            |            |            |
+| volatile读 | NO         | NO         | NO         |
+| volatile写 |            | NO         | NO         |
+
+
+
+#### Java内存模型(JMM)
+
+**可见性：**指线程之间的可见性，一个线程修改的状态对另一个线程是可见的。也就是一个线程修改的结果。另一个线程马上就能看到。比如：用volatile修饰的变量，就会具有可见性。volatile修饰的变量不允许线程内部缓存和重排序，即直接修改内存。所以对其他线程是可见的。但是这里需要注意一个问题，volatile只能让被他修饰内容具有可见性，但不能保证它具有原子性。比如 volatile int a = 0；之后有一个操作 a++；这个变量a具有可见性，但是a++ 依然是一个非原子操作，也就是这个操作同样存在线程安全问题。
+
+**原子性：**原子是世界上的最小单位，具有不可分割性。比如 a=0；（a非long和double类型） 这个操作是不可分割的，那么我们说这个操作时原子操作。再比如：a++； 这个操作实际是a = a + 1；是可分割的，所以他不是一个原子操作。非原子操作都会存在线程安全问题，需要我们使用同步技术（sychronized）来让它变成一个原子操作。一个操作是原子操作，那么我们称它具有原子性。java的concurrent包下提供了一些原子类，我们可以通过阅读API来了解这些原子类的用法。比如：AtomicInteger、AtomicLong、AtomicReference等。在 Java 中 synchronized 和在 lock、unlock 中操作保证原子性。
+
+**有序性：**程序在执行时，指令会重排。但会保持串行语义的一致性。
+
+##### Happen-Before原则
+
+1. 指令重排不可违背的基本原则：
+2. 程序顺序原则：一个线程内保证语义的串行性；
+3. volatile规则：volatile变量的写先于读发生，这保证了volatile变量的可见性
+4. 锁规则：解锁(unlock)必然发生于加锁(lock)前；
+5. 传递性：A先于B，B先于C，则A必先于C；
+6. 线程的start()方法先于它的每一个动作；
+7. 线程的所有操作先于线程的终结Thread.join()；
+8. 线程的中断(interrupt())先于被中断线程的代码；
+9. 对象的构造函数的执行、结束先于finalize()方法；
+
+#### 线程组
+
+管理线程，将同一类功能的线程放在同一个线程组中。
+
+#### 守护线程
+
+在后台完成一些系统性的服务，如：垃圾回收线程、JIT线程。与之对应的是用户线程。当一个Java应用只有守护线程时，JVM会自然退出。
+
+```java
+t1.setDaemon(true);				//设置为守护线程
+t1.start();
+```
+
+#### 线程优先级
+
+饥饿；范围为1-10
+
+```java
+public final static int MIN_PRIORITY = 1;
+public final static int NORM_PRIORITY = 5;
+public final static int MAX_PRIORITY = 10;
+
+
+t1.setPriority(Tread.MAX_PRIORITY);
+```
+
+#### Synchronized关键字
+
+即使使用volatile，原子性也无法保证，对同一变量的写操作仍是不安全的。
+
+1、指定加锁对象：给对象加锁，进入同步代码前要获得给定对象的锁；
+
+```java
+public class AccountingSync implements Runnable{
+    static AccountingSync instance = new AccountingSync();
+    static int i = 0;
+    
+    public void run(){
+        for(int j = 0;j<100000;++j){
+            synchronized(instance){
+                i++;
+            }
+        }
+    }
+}
+
+//main方法
+```
+
+2、直接作用于实例方法：相当于对当前实例加锁，进入同步代码前要获得当前实例的锁；
+
+```java
+import java.io.IOException;
+
+public class MyThread implements Runnable {
+    static int i = 0;
+    static MyThread instance = new MyThread();
+
+    public synchronized void increase(){
+        i++;
+    }
+
+    @Override
+    public void run() {
+        for(int j = 0;j<100000;++j){
+            increase();
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        Thread[] threads = new Thread[10];
+        for(int t = 0; t<10; ++t){
+            threads[t] = new Thread(instance);          //此处必须指向同一个实例,如果new 一个新的实例则没有加锁的效果
+            threads[t].start();
+        }
+
+        for(int i=0;i<10;++i){
+            threads[i].join();
+        }
+
+        System.out.println(i);
+    }
+}
+
+```
+
+3、直接作用于静态方法：相当于对当前类加锁，进入同步代码前要获得当前类的锁。
+
+使用静态方法时，即使两个线程指向不同Runnable对象，但由于方法块需要请求的是当前类的锁，而非当前实例的锁，因此还是可以正确同步的。
+
+##### 存在的问题
+
+```java
+static int i = 0; 
+synchronized(i){
+    i++;
+}
+```
+
+线程不安全：首先Integer属于不变对象，即一被创建不可能被修改。因此实际使用了Integer.valueOf()方法新建了一个Integer对象。i++在执行时变为了 i = Integer.valueOf(i.intValue()+ 1)，而Integer.valueOf是一个工厂方法,他会返回一个指定数值的Integer对象实例。因此i++的本质是创建一个新的Integer对象，并将它的引用赋值给i。因此多个线程之间看到的不是一个i对象，加锁可能加在了不同的对象实例上。
+
+改为synchronized(instance)即可。
+
+#### 并发包
+
+##### 重入锁
+
+JDK5中，性能优于synchronized关键字；6开始两者性能相近。
+
+```java
+public class MyThread implements Runnable {
+    static int i = 0;
+    static ReentrantLock lock = new ReentrantLock();
+    static MyThread instance = new MyThread();
+
+    @Override
+    public void run() {
+        for(int j = 0;j<100000;++j){
+            lock.lock();
+            i++;
+            lock.unlock();
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        Thread[] threads = new Thread[10];
+        ReentrantLock myLock = new ReentrantLock();
+        for(int t = 0; t<10; ++t){
+            threads[t] = new Thread(instance);          //此处必须指向同一个实例,如果new 一个新的实例则没有加锁的效果
+            threads[t].start();
+        }
+
+        for(int i=0;i<10;++i){
+            threads[i].join();
+        }
+
+        System.out.println(i);
+    }
+}
+```
+
+可重入是指对同一个线程，可以多次lock，但必须同样次数地unlock
+
+1、中断响应
+
+调用lockInterruptily()方法可以在加锁过程中响应中断。
+
+```java
+t1.lockInterruptibly();
+
+t2.lockInterruptibly();
+
+t1.interrupt();				//中断一个线程
+```
+
+2、锁申请等待时限
+
+```java
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class MyThread implements Runnable {
+    public static ReentrantLock lock1 = new ReentrantLock();
+    int lock;
+
+    MyThread(int lock){this.lock = lock;}
+
+    @Override
+    public void run() {
+        try {
+            if(lock1.tryLock(5, TimeUnit.SECONDS)){			
+                Thread.sleep(6000);
+            }else{
+                System.out.println("get failed");			//超时直接fail
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }finally {
+            if (lock1.isHeldByCurrentThread()) lock1.unlock();
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        MyThread lock1 = new MyThread(1);
+
+        Thread t1 = new Thread(lock1);
+        Thread t2 = new Thread(lock2);
+        t1.start(); t2.start();
+    }
+}
+```
+
+也可以用tryLock()不指定时间的方式避免死锁，其方法一旦申请成功会立即返回true，否则立即返回false
+
+##### 死锁与解决死锁
+
+```java
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class MyThread implements Runnable {
+
+    public static ReentrantLock lock1 = new ReentrantLock();
+    public static ReentrantLock lock2 = new ReentrantLock();
+
+    int lock;
+
+    MyThread(int lock){this.lock = lock;}
+
+    @Override
+    public void run() {
+        if(lock ==1){
+            while(true){
+                if(lock1.tryLock()){
+                    try{
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        if(lock2.tryLock()){
+                            try{
+                                System.out.println(Thread.currentThread().getId()+": done");
+                                return;
+                            }finally{
+                                lock2.unlock();
+                            }
+                        }
+                    }finally{
+                        lock1.unlock();
+                    }
+                }
+            }
+        }else{
+            while(true){
+                if(lock2.tryLock()){
+                    try {
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        if(lock1.tryLock()){
+                            try{
+                                System.out.println(Thread.currentThread().getId()+": done");
+                                return;
+                            }finally {
+                                lock1.unlock();
+                            }
+                        }
+                    }finally {
+                        lock2.unlock();
+                    }
+                }
+            }
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        MyThread lock1 = new MyThread(1);
+        MyThread lock2 = new MyThread(2);
+
+        Thread t1 = new Thread(lock1);
+        Thread t2 = new Thread(lock2);
+        t1.start(); t2.start();
+
+    }
+}
+
+```
+
+3、公平锁
+
+若使用synchronized关键字，是不公平锁，从等待队列中随机抽一个，会产生饥饿现象。
+
+而公平锁需要维护一个有序队列，实现成本高，性能低。
+
+```java
+new ReentrantLock(true);
+```
+
+##### Condition对象
+
+作用与object.wait()和object.notify()大致相同。与重入锁相关联。
+
+```java
+public static ReentrantLock lock1 = new ReentrantLock();
+public static Condition condition = lock1.newCondition();
+
+lock2.lock();
+condition.await();
+lock2.lock();
+condition.signal();
+lock2.unlock();
+
+```
+
+##### 生产者消费者
+
+```java
+//还有bug
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class MyThread{
+
+    private static ReentrantLock lock = new ReentrantLock();
+    private static Condition notFull = lock.newCondition();
+    private static Condition notEmpty = lock.newCondition();
+
+    static final int size = 10;
+    static int count = 0;
+    static int putIndex = 0;
+    static int takeIndex = 0;
+    static private Integer elem[] = new Integer[size];             //循环队列
+    static int ptr = 0;
+
+    private static int inc(int index){
+        return (index+size+1) % size;
+    }
+
+    static void debug(){
+        for(int i=0; i<size;++i){
+            System.out.print(elem[i]+" ");
+        }
+        System.out.println();
+    }
+
+    static class Producor implements Runnable {
+
+        @Override
+        public void run() {
+            while(true){
+                try {
+                    Put(ptr);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        public void Put(int e)throws InterruptedException{
+            try{
+                lock.lockInterruptibly();
+                while(count == size){
+                    notFull.await();            //如果队列满则等待
+                }
+                insert(e);
+                System.out.println("生产产品: "+ ptr + ", 位置: "+ putIndex + "数量: " + count);
+                debug();
+                ptr++;
+            }finally {
+                lock.unlock();
+            }
+        }
+
+        private void insert(int a){
+            elem[putIndex] = a;
+            putIndex = inc(putIndex);
+            ++count;
+            notEmpty.signal();
+        }
+    }
+
+    static class Consumer implements Runnable{
+        @Override
+        public void run() {
+            while(true) {
+                int e;
+                try {
+                    e = Get();
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+
+        public int Get() throws InterruptedException{
+            lock.lockInterruptibly();
+            try {
+                while(count ==0){
+                    notEmpty.await();
+                    //System.out.println("消费者等待");
+                }
+                int e = extract();
+                System.out.println("得到产品: " + e+" 位置: "+(takeIndex-1)+" 数量: "+count);
+                debug();
+                return e;
+            }finally {
+                lock.unlock();
+            }
+        }
+
+        private int extract(){
+            int e = elem[takeIndex];
+            elem[takeIndex] = null;
+            takeIndex = inc(takeIndex);
+            --count;
+            notFull.signal();
+            return e;
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        Thread producer[] = new Thread[10];
+        Thread consumer[] = new Thread[10];
+
+        for(int i=0;i<10;++i){
+            producer[i] = new Thread(new Producor());
+            producer[i].start();
+        }
+
+        for(int i=0;i<5;++i){
+            consumer[i] = new Thread(new Consumer());
+            consumer[i].start();
+        }
+    }
+}
+```
+
+
+
+#### 并行基础
+
+六种状态：NEW、RUNNABLE、BLOCKED、WAITING、TIMED_WAITING、TERMINATED
+
+基本操作：
+
+1、新建线程
+
+```java
+Thread t1 = new Thread();
+t1.start();							//start方法执行run方法，但如果只执行run方法，其实不会新创建线程
+```
+
+继承Runnable接口，重写run方法
+
+2、终止线程
+
+```java
+t1.stop();				//此方法已经被废弃，且随意终止线程可能造成数据不一致错误
+```
+
+3、线程中断
+
+```java
+public void Thread.interrupt();				//线程中断
+public boolean Thread.isInterrupted();		//判断是否被中断
+public static boolean Thread.interrupted();	//判断是否被中断，并清除当前中断状态
+```
+
+```java
+Thread t1 = new Thread(){
+  	public void run(){
+        while(true){
+            if(Thread.currentThread().isInterrupted()){			//判断的是否被中断
+                System.out.println("Interrupted");				
+                break;
+            }
+        }
+    }  
+};
+```
+
+Thread.sleep方法：让当前线程休眠若干时间，当睡眠时被中断会抛出InterruptedException，它不是运行时异常，程序必须捕获并处理它。
+
+4、等待wait和通知notify：都属于Object类。
+
+如果一个线程调用wait，则会进入object对象的等待队列；notify方法被调用后，随机选择一个线程唤醒。
+
+wait和sleep：wait会释放目标对象的锁；而sleep不释放任何资源。
+
+5、等待线程结束join和谦让yield
+
+join本质是调用wait方法
+
+！不要在应用程序中，在Thread对象上使用类似wait()和notify()方法。可能会影响系统API。
+
+对优先级较低的线程，可以在合适的地方调用yield方法让出CPU资源。
+
+#### 线程池
+
+线程的数量若不加控制则会产生不利的影响。线程虽小，但本身也要占用内存空间的，处理不佳会导致Out of Memory异常。即使没有，也会给GC带来很大压力。为了避免频繁地创建和小虎线程，可以复用线程。
+
+在线程池中，总有一些激活状态的线程。当需要使用的时候，可以从池子中随便拿一个空闲线程，当完成工作后，并不着急关闭它，而是将其退回线程池
+
+```java
+public class MyThread implements Runnable{
+
+    @Override
+    public void run() {
+        System.out.println(System.currentTimeMillis()+":Thread ID: "+Thread.currentThread().getId());
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        MyThread task = new MyThread();
+        ExecutorService es = Executors.newFixedThreadPool(5);		//数量为5
+        for(int i=0;i<10;++i){			
+            es.submit(task);										//提交任务，可以发现第一波的五个线程早于第二波的五个线程，且线程ID都是同样的五个
+        }
+    }
+}
+```
+
+Executors类似线程工厂，ThreadPoolExecutor类实现了Executors接口，通过这个接口，任何Runnable对象都可以被它调用。
+
+
+
+
+
+### *其他
+
+#### System.out.println
+
+语句：System.out.println();
+
+System是一个类，继承自根类Object
+
+out是类PrintStream类实例化的一个静态变量。
+
+println()是类PrintStream的成员方法，被对象out调用
+
+![img](https://img-blog.csdn.net/20180601211607892?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzE5MDEwNjI1/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+
+详细讲解：https://www.cnblogs.com/skywang12345/p/io_17.html
