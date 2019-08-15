@@ -114,10 +114,16 @@ proto配置文件默认放在src/main/proto下
 
 #### Vue中使用protobuf
 
+npm安装protobuf
+
+```bash
+npm install google-protobuf --save
+```
+
 使用和后端同样的配置文件，并使用前端的编译语言
 
 ```protobuf
-protoc.exe --js_out=import_style=user,binary:. user.proto
+protoc.exe --js_out=import_style=commonjs,binary:. user.proto(你的proto文件)
 ```
 
 将生成的js文件放至src/proto/目录下

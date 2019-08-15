@@ -76,10 +76,52 @@ git push origin master			#仓库不为空
 #### 克隆
 
 ```bash
-git clone [url]
+git clone (url)
 ```
 
 
 
 ### 6. 分支管理
+
+克隆远程仓库的某一个分支
+
+```bash
+git clone -b (分支名) (url)
+```
+
+删除分支
+
+```bash
+git push origin :[分支名]
+```
+
+#### 7. gitignore
+
+创建.gitignore文件，以springboot为例
+
+```java
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+/src/test/**
+/src/main/resources/*.properties
+/src/main/resources/*.yml
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
+```
+
+若未即时生效则将缓存中的内容清除
+
+```bash
+git rm -r --cached .
+git add .gitignore
+git commit -m "update .gitignore"
+```
 
