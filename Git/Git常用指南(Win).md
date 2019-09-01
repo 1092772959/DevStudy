@@ -95,7 +95,7 @@ git clone -b (分支名) (url)
 git push origin :[分支名]
 ```
 
-#### 7. gitignore
+### 7. gitignore
 
 创建.gitignore文件，以springboot为例
 

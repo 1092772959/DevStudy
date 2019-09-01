@@ -1330,7 +1330,7 @@ public class Constructors {
 
   1).批量的方法：
 public Constructor[] getConstructors()：所有”公有的”构造方法
-            public Constructor[] getDeclaredConstructors()：获取所有的构造方法(包括私有、受保护、默认、公有)
+​            public Constructor[] getDeclaredConstructors()：获取所有的构造方法(包括私有、受保护、默认、公有)
 
   2).获取单个的方法，并调用：
 public Constructor getConstructor(Class… parameterTypes):获取单个的”公有的”构造方法：
@@ -1632,6 +1632,119 @@ public class Demo {
 
 ### 六、多线程
 
+#### 实现的方式
+
+1、继承Thread
+
+2、实现Runnable接口（有利于共享数据）
+
+3、实现Callable接口
+
+JUC并发包下，接口泛型指定call方法返回值；创建进程时
+
+```java
+ExecutorService ser = Executors.newFixedThreadPool(3);	//调用线程池
+Future<Boolean> res1 = ser.submit(cd1);		//cd为Callable实现对象
+
+//获取结果
+boolean r1 = res1.get();		//此处会抛出异常
+ser.shutdownNow();
+```
+
+#### 静态代理
+
+真实角色、代理角色
+
+new Thread(new Runnable()).start()
+
+#### Lamda表达式
+
+用于简化只用一次的线程体的编写
+
+*需保证接口只有一个没有实现的方法
+
+*lambda推导的时候一定要提供类型（引用变量/形参）
+
+带形参
+
+```java
+public class LamdaTest02 {
+
+    static class Test1 implements Speak{
+        @Override
+        public void speak(int a) {
+            System.out.println("静态内部类: "+a);
+        }
+    }
+
+    public static void main(String[] args) {
+        test1();
+    }
+
+
+    public static void test1(){
+        new Test1().speak(1);
+
+        class Test2 implements Speak{
+            @Override
+            public void speak(int a) {
+                System.out.println("局部内部类: "+a);
+            }
+        }
+
+        new Test2().speak(2);
+
+        new Speak() {
+            @Override
+            public void speak(int a) {
+                System.out.println("匿名内部类: "+a);
+            }
+        }.speak(3);
+
+        Speak tmp = (int a)->{
+            System.out.println("lambda: "+a);
+        };
+        tmp.speak(4);
+
+        //如果只有一行代码：可省略花括号
+        tmp = (int a)-> System.out.println("new lambda: "+a);
+        tmp.speak(5);
+    }
+}
+
+interface Speak{
+    void speak(int a);
+}
+```
+
+带返回值
+
+```java
+public class LamdaTest03 {
+
+    public static void main(String[] args) {
+        /**
+         * 可省略类型，但要省一起省
+         * 只有一个参数时，可省略圆括号
+         */
+        Run tmp = b -> {
+            System.out.println("lambda: "+b);
+            return b+1;
+        };
+        System.out.println(tmp.speak(3));
+    }
+}
+
+interface Run{
+    int speak(int a);
+}
+
+```
+
+
+
+
+
 #### volatile
 
 当一个变量定义为 volatile 之后，将具备两种特性：
@@ -1736,8 +1849,16 @@ public class AccountingSync implements Runnable{
             }
         }
     }
-}
+}  
 
+public static void main(String[] args) throws InterruptedException {
+        Thread t1 = new Thread(instance,"A");
+        Thread t2 = new Thread(instance,"B");
+        t1.start();t2.start();
+
+        t1.join(); t2.join();
+        System.out.println(i);
+    }
 //main方法
 ```
 
@@ -1781,6 +1902,28 @@ public class MyThread implements Runnable {
 3、直接作用于静态方法：相当于对当前类加锁，进入同步代码前要获得当前类的锁。
 
 使用静态方法时，即使两个线程指向不同Runnable对象，但由于方法块需要请求的是当前类的锁，而非当前实例的锁，因此还是可以正确同步的。
+
+
+
+##### 双重检查锁
+
+```java
+public  class DoubleCheckedLocking{
+  private static Instance instance;                 
+ 
+  public static Instance getInstance(){             
+    if(instance ==null){                            
+      synchronized (DoubleCheckedLocking.class){    
+        if(instance ==null)                         
+          instance=new Instance();                  
+      }
+    }
+    return instance;
+  }
+}
+```
+
+
 
 ##### 存在的问题
 
@@ -1993,6 +2136,111 @@ lock2.unlock();
 
 ##### 生产者消费者
 
+使用wait和notifyAll实现
+
+```java 
+/**
+ * 生产者消费者
+ */
+
+public class CoTest01 {
+    public static void main(String[] args) {
+        SysContainer container = new SysContainer();
+        Thread t1 = new Thread(new Consumer(container));
+        Thread t2 = new Thread(new Producer(container));
+        t1.start();
+        t2.start();
+    }
+}
+
+class Consumer implements Runnable{
+    SysContainer container;
+
+    public Consumer(SysContainer container){
+        this.container = container;
+    }
+
+    @Override
+    public void run() {
+        for(int i=0;i<SysContainer.maxn*10;++i){
+            System.out.println("消费："+container.pop().id);
+        }
+    }
+}
+
+class Producer implements Runnable{
+    SysContainer container;
+
+    public Producer(SysContainer container){
+        this.container = container;
+    }
+
+    @Override
+    public void run() {
+        for(int i=0;i<SysContainer.maxn*10;++i){
+            container.push(new Item(i));
+            System.out.println("生产："+i);
+        }
+    }
+}
+
+class SysContainer{
+    static int maxn = 1000;
+    Item[] items = new Item[maxn];
+
+    int head = 0,rear = 0;
+    int cnt = 0;
+
+    private int inc(int p){
+        return (p+1)%maxn;
+    }
+
+    public synchronized void push(Item in){
+        while(cnt >= maxn){
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        items[head] = in;
+        head = inc(head);
+        cnt++;
+        this.notifyAll();
+    }
+
+    public synchronized Item pop(){
+
+        while(cnt == 0){
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        Item res = null;
+        res = items[rear];
+        items[rear] = null;
+        cnt--;
+        this.notifyAll();
+        rear = inc(rear);
+
+        return res;
+    }
+}
+
+class Item{
+    int id;
+    Item(int id){
+        this.id = id;
+    }
+}
+```
+
+
+
 ```java
 //还有bug
 import java.util.concurrent.locks.Condition;
@@ -2131,6 +2379,40 @@ public class MyThread{
 
 六种状态：NEW、RUNNABLE、BLOCKED、WAITING、TIMED_WAITING、TERMINATED
 
+![](D:\技术\学习笔记\Java\线程状态.PNG)
+
+![](D:\技术\学习笔记\Java\线程状态2.PNG)
+
+进入就绪状态的4种情况：
+
+1. start()
+2. 由阻塞状态接触
+3. yield()
+4. JVM调度
+
+进入阻塞的情况：
+
+1. sleep
+2. wait
+3. join
+4. read/write
+
+
+
+RUN：new Thread之后
+
+RUNNABLE：start之后
+
+WAITING：sleep, join
+
+TIME_WAITING：指定时间的sleep
+
+BLOCKED：IO阻塞或者wait
+
+TERMINATE：线程结束
+
+
+
 基本操作：
 
 1、新建线程
@@ -2171,19 +2453,21 @@ Thread t1 = new Thread(){
 
 Thread.sleep方法：让当前线程休眠若干时间，当睡眠时被中断会抛出InterruptedException，它不是运行时异常，程序必须捕获并处理它。
 
-4、等待wait和通知notify：都属于Object类。
+4、等待**wait**和通知**notify**：都属于Object类。
 
 如果一个线程调用wait，则会进入object对象的等待队列；notify方法被调用后，随机选择一个线程唤醒。
 
 wait和sleep：wait会释放目标对象的锁；而sleep不释放任何资源。
 
-5、等待线程结束join和谦让yield
+5、等待线程结束**join**和谦让**yield**
 
-join本质是调用wait方法
+join：本质是调用wait方法，是成员方法
 
-！不要在应用程序中，在Thread对象上使用类似wait()和notify()方法。可能会影响系统API。
+！**不要在应用程序中，在Thread对象上使用类似wait()和notify()方法。可能会影响系统API。**
 
 对优先级较低的线程，可以在合适的地方调用yield方法让出CPU资源。
+
+yield： 不是阻塞线程，而是将线程从**运行状态**转入**就绪状态**，有利于公平竞争。静态方法，在哪个线程中调用，就对哪个线程作用
 
 #### 线程池
 
@@ -2218,6 +2502,180 @@ Executors类似线程工厂，ThreadPoolExecutor类实现了Executors接口，�
 
 
 
+### 七、IO
+
+#### IO工具类
+
+```java
+public class IOUtil {
+
+    public static void copyFile(String inputFileSrc, String outputFilesrc) throws FileNotFoundException {
+        InputStream in = new FileInputStream(inputFileSrc);
+        OutputStream out = new FileOutputStream(outputFilesrc);
+        copyStream(in,out);
+        close(in,out);      //关闭流
+    }
+
+    public static void copyStream(InputStream in, OutputStream out){
+        byte[] bytes = InputStreamToBytes(in);
+        bytesToOutputStream(out,bytes);
+    }
+
+
+    public static byte[] InputStreamToBytes(InputStream in){
+        byte[] dest = null;
+        ByteArrayOutputStream baos = null;
+        in = new BufferedInputStream(in);				//提速
+        try {
+            baos  = new ByteArrayOutputStream();
+            dest = new byte[1024*10];
+            int len = -1;
+            while(-1 != (len = in.read(dest))){
+                baos.write(dest,0,len);
+            }
+            baos.flush();
+            return baos.toByteArray();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally {
+            close(baos);
+        }
+        return null;
+    }
+
+    /**
+     * 使用ByteArrayInputStream(不用也行) 和 FileOutputStream
+     * @param bytes
+
+     */
+    public static void bytesToOutputStream(OutputStream out, byte[] bytes){
+        out = new BufferedOutputStream(out);				//提速
+        try {
+            out.write(bytes,0,bytes.length);
+            out.flush();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void close(Closeable ...ios){
+        for(Closeable io: ios){
+            if(io!=null){
+                try {
+                    io.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
+```
+
+转换流
+
+```java
+
+/**
+ * 转换流：InputStreamReader OutputStreamReader
+ */
+
+public class ConvertTest {
+    public static void main(String[] args) {
+        try {
+            web();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void web() throws IOException {
+        BufferedReader is = new BufferedReader( new InputStreamReader(
+                new URL("http://www.baidu.com").openStream(),"UTF-8"));          //读取源码
+
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream("baidu.html"),"UTF-8"));
+
+        int tmp = -1;
+        while((tmp = is.read())!=-1){
+            System.out.print((char)tmp);
+            writer.write(tmp);
+//            writer.newLine();
+        }
+        writer.flush();
+    }
+
+    public static void keyboard(){
+        //由键盘读取的字节流转化为字符流并输出
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(System.out));
+
+        try {
+            String msg = "";
+            while (!msg.equals("exit")) {
+                msg = reader.readLine();
+                writer.write(msg);
+                writer.newLine();
+                writer.flush();
+            }
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+
+
+#### 包装类
+
+##### 缓冲流
+
+BufferedInputStream/BufferedReader (out/writer)
+
+##### 数据流
+
+DataInputStream(out)
+
+在存取数据的同时，保持数据类型，传输的自定义对象要实现Serializable接口
+
+transient关键字：该数据不需要序列化
+
+##### 打印流
+
+```java
+public class PrintTest {
+    public static void main(String[] args) throws FileNotFoundException {
+        PrintStream ps = System.out;
+        ps.println("打印流");
+        ps.println(true);
+
+        ps = new PrintStream(new BufferedOutputStream(new FileOutputStream("out.txt")),
+                true);      //创建时可指定是否自动flush
+        ps.println("stream");
+        ps.println(1);
+//        ps.flush();
+
+        //重定向
+        System.setOut(ps);
+        System.out.println("change");
+        //重定向回控制台
+        System.setOut(new PrintStream(new BufferedOutputStream(new FileOutputStream(FileDescriptor.out)),true));
+        System.out.println("I am back...");
+
+
+        PrintWriter writer = new PrintWriter(new BufferedOutputStream(new FileOutputStream("out.txt")), true);
+        writer.println("writer");
+    }
+}
+```
+
+
+
 
 
 ### *其他
@@ -2235,3 +2693,6 @@ println()是类PrintStream的成员方法，被对象out调用
 ![img](https://img-blog.csdn.net/20180601211607892?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzE5MDEwNjI1/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
 
 详细讲解：https://www.cnblogs.com/skywang12345/p/io_17.html
+
+
+

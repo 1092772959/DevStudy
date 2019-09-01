@@ -473,6 +473,10 @@ public class StudentServer {
 
 
 
+##### Redis工具类
+
+
+
 ### 二、消息队列
 
 作用：异步通信、应用解耦、流量削峰（秒杀系统的实现）
