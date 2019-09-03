@@ -1,5 +1,132 @@
 ## 基础部分
 
+### 全局异常处理器
+
+```java
+package com.nipponsteel.fittingroom.config;
+
+
+import com.nipponsteel.fittingroom.entity.Result;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.shiro.authc.AuthenticationException;
+import org.apache.shiro.authz.UnauthenticatedException;
+import org.apache.shiro.authz.UnauthorizedException;
+import org.hibernate.validator.internal.engine.ConstraintViolationImpl;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import javax.validation.ConstraintViolation;
+import javax.validation.ConstraintViolationException;
+import javax.validation.ValidationException;
+import java.util.Set;
+
+/**
+ * @author imsjw
+ * Create Time: 2019/8/6
+ */
+@Slf4j
+@ControllerAdvice
+public class GlobalExceptionHandler {
+
+    /**
+     * 基本异常处理
+     *
+     * @param e
+     */
+    @ResponseBody
+    @ExceptionHandler(value = Exception.class)
+    public Result basicExceptionHandling(Exception e) {
+        printfExceptionInfo(e, Result.UnknownError);
+        return Result.UnknownError;
+    }
+
+    /**
+     * 用于Controller参数校验错误的统一处理
+     *
+     * @param e
+     * @return
+     */
+    @ResponseBody
+    @ExceptionHandler(value = ValidationException.class)
+    public Result validationExceptionHandling(ValidationException e) {
+        String data = "参数不符合规则";
+        if (e instanceof ConstraintViolationException) {
+            ConstraintViolationException constraintViolationException = (ConstraintViolationException) e;
+            Set<ConstraintViolation<?>> constraintViolations = constraintViolationException.getConstraintViolations();
+            if (constraintViolations != null) {
+                Object[] objects = constraintViolations.toArray();
+                StringBuffer resData = new StringBuffer();
+                for (int i = 0; i < objects.length; i++) {
+                    ConstraintViolationImpl constraintViolation = (ConstraintViolationImpl) objects[i];
+                    resData.append(constraintViolation.getMessage());
+                    resData.append("\n");
+                }
+                data = resData.toString();
+            }
+        }
+        if (StringUtils.isBlank(data)) {
+            data = "无效的参数";
+        }
+        Result result = Result.getInvalidParamResult("无效的参数", data);
+        return result;
+    }
+
+    @ResponseBody
+    @ExceptionHandler(value = {UnauthenticatedException.class, UnauthorizedException.class})
+    public Result loginExceptionHandling(Exception e) {
+        printfExceptionInfo(e, Result.AuthorizationError);
+        return Result.AuthorizationError;
+    }
+
+    @ResponseBody
+    @ExceptionHandler(value = {AuthenticationException.class})
+    public Result loginExceptionHandling(AuthenticationException e) {
+        printfExceptionInfo(e, Result.TokenError);
+        return Result.TokenError;
+    }
+
+    private void printfExceptionInfo(Exception e, Result result) {
+        if (result.getData() != null) {
+            printfExceptionInfo(e, result, result.getData().toString());
+        } else {
+            printfExceptionInfo(e, result, null);
+        }
+    }
+
+    private void printfExceptionInfo(Exception e, Result result, String title) {
+        StringBuffer strBuf = new StringBuffer();
+        strBuf.append("\r\n**********异常信息开始**********\r\n");
+        strBuf.append("Code:");
+        strBuf.append(result.getCode());
+        if (title != null) {
+            strBuf.append(" 标题:");
+            strBuf.append(title);
+        }
+        strBuf.append("\r\n");
+        if (e != null) {
+            strBuf.append(e.getMessage());
+            strBuf.append("\r\n");
+            strBuf.append(e.toString());
+            strBuf.append("\r\n");
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            if (stackTrace != null) {
+                for (StackTraceElement t : stackTrace) {
+                    strBuf.append(t.toString());
+                    strBuf.append("\r\n");
+                }
+            }
+        }
+        strBuf.append("**********异常信息结束**********");
+        strBuf.append("\r\n");
+        log.error(strBuf.toString());
+    }
+
+}
+
+```
+
 
 
 ### 五、docker
@@ -473,10 +600,6 @@ public class StudentServer {
 
 
 
-##### Redis工具类
-
-
-
 ### 二、消息队列
 
 作用：异步通信、应用解耦、流量削峰（秒杀系统的实现）
@@ -790,4 +913,78 @@ public class MailService {
 #### 4. 富文本
 
 
+
+### Shiro权限+Token
+
+Maven pom.xml
+
+```maven
+		<dependency>
+            <groupId>org.apache.shiro</groupId>
+            <artifactId>shiro-core</artifactId>
+            <version>1.4.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.shiro</groupId>
+            <artifactId>shiro-spring</artifactId>
+            <version>1.4.1</version>
+        </dependency>
+```
+
+需要两个类：一个是shiroConfig类，一个是CustonRealm类
+
+**ShiroConfig**: 顾名思义就是对shiro的一些配置，相对于之前的xml配置。包括：过滤的文件和权限，密码加密的算法，其用注解等相关功能。
+
+```java
+@Configuration
+public class ShiroConfig {
+
+    @Bean(name = "shiroFilter")
+    public ShiroFilterFactoryBean shiroFilter(SecurityManager securityManager) {
+        ShiroFilterFactoryBean shiroFilterFactoryBean = new ShiroFilterFactoryBean();
+        shiroFilterFactoryBean.setSecurityManager(securityManager);
+        shiroFilterFactoryBean.setLoginUrl("/login");
+        shiroFilterFactoryBean.setUnauthorizedUrl("/notRole");
+        Map<String, String> filterChainDefinitionMap = new LinkedHashMap<>();
+        // <!-- authc:所有url都必须认证通过才可以访问; anon:所有url都都可以匿名访问-->
+        filterChainDefinitionMap.put("/webjars/**", "anon");
+        filterChainDefinitionMap.put("/login", "anon");
+        filterChainDefinitionMap.put("/", "anon");
+        filterChainDefinitionMap.put("/front/**", "anon");
+        filterChainDefinitionMap.put("/api/**", "anon");
+
+        filterChainDefinitionMap.put("/admin/**", "authc");
+        filterChainDefinitionMap.put("/user/**", "authc");
+        //主要这行代码必须放在所有权限设置的最后，不然会导致所有 url 都被拦截 剩余的都需要认证
+        filterChainDefinitionMap.put("/**", "authc");
+        shiroFilterFactoryBean.setFilterChainDefinitionMap(filterChainDefinitionMap);
+        return shiroFilterFactoryBean;
+    }
+
+    @Bean
+    public SecurityManager securityManager() {
+        DefaultWebSecurityManager defaultSecurityManager = new DefaultWebSecurityManager();
+        defaultSecurityManager.setRealm(customRealm());
+        return defaultSecurityManager;
+    }
+
+    @Bean
+    public CustomRealm customRealm() {
+        CustomRealm customRealm = new CustomRealm();
+        return customRealm;
+    }
+}
+```
+
+
+
+**CustomRealm**类：自定义的CustomRealm继承`AuthorizingRealm`。并且重写父类中的`doGetAuthorizationInfo`（权限相关）、`doGetAuthenticationInfo`（身份认证）这两个方法。
+
+```java
+
+```
+
+
+
+### Netty网络
 
