@@ -1783,6 +1783,77 @@ public class NoVisibility {
 | volatile读 | NO         | NO         | NO         |
 | volatile写 |            | NO         | NO         |
 
+```java
+public class Volatile {
+    /**
+     * volatile用于保证数据的同步性
+     * @param args
+     */
+    private volatile static int num = 0;
+
+    public static void main(String[] args) {
+        Thread t1 = new Thread(()->{
+            while(num ==0){             //此处让CPU很忙，以至于之后主线程中的修改都无法读取到
+
+            }
+        });
+
+        t1.start();
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        num = 1;
+    }
+}
+
+```
+
+##### DCL单例模式-双重锁
+
+```java
+/**
+ * 单例模式：懒汉式套路 在多线程环境下，对外存在一个对象
+ * 1. 构造器私有化 --> 避免外部new构造器
+ * 2. 提供私有的静态属性 --> 存储一个对象的地址
+ * 3、提供公共的静态方法  --> 获取属性
+ */
+
+public class DoubleCheckedLocking {
+    private static volatile DoubleCheckedLocking instance;       //懒汉式
+    //没有volatile,其他线程可能访问一个没有初始化的对象
+
+    //1.构造器私有化
+    private DoubleCheckedLocking(){}
+
+    //3. 公共的静态方法 --> 获取属性
+    public static DoubleCheckedLocking getInstance(){
+        if(instance != null) {          //避免不必要的同步，已经存在对象
+            return instance;
+        }
+        synchronized (DoubleCheckedLocking.class) {             //类锁
+            if (instance == null) {
+                instance = new DoubleCheckedLocking();          //此处可能发生指令重排
+                /*
+                     new 一个对象时
+                     1. 开辟空间
+                     2. 初始化对象信息
+                     3. 返回对象的地址给引用
+                 */
+            }
+        }
+        return instance;
+    }
+
+    public static void main(String[] args) {
+
+    }
+}
+```
+
 
 
 #### Java内存模型(JMM)
@@ -1795,6 +1866,8 @@ public class NoVisibility {
 
 ##### Happen-Before原则
 
+当CPU在运行时，存在后序指令先于之前的指令结束的可能。代码执行顺序与预期的不一致，目的提高性能。
+
 1. 指令重排不可违背的基本原则：
 2. 程序顺序原则：一个线程内保证语义的串行性；
 3. volatile规则：volatile变量的写先于读发生，这保证了volatile变量的可见性
@@ -1804,6 +1877,45 @@ public class NoVisibility {
 7. 线程的所有操作先于线程的终结Thread.join()；
 8. 线程的中断(interrupt())先于被中断线程的代码；
 9. 对象的构造函数的执行、结束先于finalize()方法；
+
+```java
+public class HappenBefore {
+    private static int a = 0;
+    private static boolean flag = false;
+
+    public static void main(String[] args) throws InterruptedException {
+        //线程1读取数据
+        for(int i=0;i<10000;++i){
+            a = 0;
+            flag = false;
+
+            Thread t1 = new Thread(()->{
+                a = 1;
+                flag = true;
+            });
+
+            //线程2读取数据
+            Thread t2 = new Thread(()->{
+                if(flag) {
+                    a *= 1;
+                }
+                if(a == 0){
+                    System.out.println("happen before ->"+a);
+                }
+            });
+
+            t1.start();
+            t2.start();
+
+            t1.join();
+            t2.join();
+        }
+    }
+}
+
+```
+
+
 
 #### 线程组
 
@@ -2242,132 +2354,153 @@ class Item{
 
 
 ```java
-//还有bug
+package consumerProducer;//还有bug
+
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class MyThread{
-
-    private static ReentrantLock lock = new ReentrantLock();
-    private static Condition notFull = lock.newCondition();
-    private static Condition notEmpty = lock.newCondition();
-
-    static final int size = 10;
-    static int count = 0;
-    static int putIndex = 0;
-    static int takeIndex = 0;
-    static private Integer elem[] = new Integer[size];             //循环队列
-    static int ptr = 0;
-
-    private static int inc(int index){
-        return (index+size+1) % size;
-    }
-
-    static void debug(){
-        for(int i=0; i<size;++i){
-            System.out.print(elem[i]+" ");
-        }
-        System.out.println();
-    }
-
-    static class Producor implements Runnable {
-
-        @Override
-        public void run() {
-            while(true){
-                try {
-                    Put(ptr);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        public void Put(int e)throws InterruptedException{
-            try{
-                lock.lockInterruptibly();
-                while(count == size){
-                    notFull.await();            //如果队列满则等待
-                }
-                insert(e);
-                System.out.println("生产产品: "+ ptr + ", 位置: "+ putIndex + "数量: " + count);
-                debug();
-                ptr++;
-            }finally {
-                lock.unlock();
-            }
-        }
-
-        private void insert(int a){
-            elem[putIndex] = a;
-            putIndex = inc(putIndex);
-            ++count;
-            notEmpty.signal();
-        }
-    }
-
-    static class Consumer implements Runnable{
-        @Override
-        public void run() {
-            while(true) {
-                int e;
-                try {
-                    e = Get();
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
-                }
-
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
-                }
-            }
-        }
-
-        public int Get() throws InterruptedException{
-            lock.lockInterruptibly();
-            try {
-                while(count ==0){
-                    notEmpty.await();
-                    //System.out.println("消费者等待");
-                }
-                int e = extract();
-                System.out.println("得到产品: " + e+" 位置: "+(takeIndex-1)+" 数量: "+count);
-                debug();
-                return e;
-            }finally {
-                lock.unlock();
-            }
-        }
-
-        private int extract(){
-            int e = elem[takeIndex];
-            elem[takeIndex] = null;
-            takeIndex = inc(takeIndex);
-            --count;
-            notFull.signal();
-            return e;
-        }
-    }
+public class ConsumerProducer {
 
     public static void main(String[] args) throws InterruptedException {
         Thread producer[] = new Thread[10];
         Thread consumer[] = new Thread[10];
+        Container container = new Container();
 
         for(int i=0;i<10;++i){
-            producer[i] = new Thread(new Producor());
+            producer[i] = new Thread(new Producor(container));
             producer[i].start();
         }
 
         for(int i=0;i<5;++i){
-            consumer[i] = new Thread(new Consumer());
+            consumer[i] = new Thread(new Consumer(container));
             consumer[i].start();
+        }
+    }
+}
+
+class Container{
+
+    private ReentrantLock lock = new ReentrantLock();
+    private Condition notFull = lock.newCondition();
+    private Condition notEmpty = lock.newCondition();
+
+    final int size = 10;
+    int count = 0;
+    int putIndex = 0;
+    int takeIndex = 0;
+    private Integer elem[] = new Integer[size];             //循环队列
+    int ptr = 0;
+
+    int inc(int index){
+        return (index+size+1) % size;
+    }
+
+    void debug() {
+        for (int i = 0; i < size; ++i) {
+            System.out.print(elem[i] + " ");
+        }
+        System.out.println();
+    }
+
+    public void put() throws InterruptedException {
+        try{
+            lock.lockInterruptibly();
+            while(count == size){
+                notFull.await();            //如果队列满则等待
+            }
+            insert(ptr);
+            System.out.println("生产产品: "+ ptr + ", 位置: "+ putIndex + "数量: " + count);
+            debug();
+            ptr++;
+        }finally {
+            lock.unlock();
+        }
+    }
+
+    void insert(int a){
+        elem[putIndex] = a;
+        putIndex = inc(putIndex);
+        ++count;
+        notEmpty.signal();
+    }
+
+    //消费
+
+    int Get() throws InterruptedException{
+        lock.lockInterruptibly();
+        try {
+            while(count ==0){
+                notEmpty.await();
+                //System.out.println("消费者等待");
+            }
+            int e = extract();
+            System.out.println("得到产品: " + e+" 位置: "+(takeIndex-1)+" 数量: "+count);
+            debug();
+            return e;
+        }finally {
+            lock.unlock();
+        }
+    }
+
+    private int extract(){
+        int e = elem[takeIndex];
+        elem[takeIndex] = null;
+        takeIndex = inc(takeIndex);
+        --count;
+        notFull.signal();
+        return e;
+    }
+}
+
+
+class Producor implements Runnable {
+    Container container;
+
+    Producor(Container container){
+        this.container = container;
+    }
+
+    @Override
+    public void run() {
+
+        while(true){
+            try {
+                container.put();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
+class Consumer implements Runnable{
+    Container container;
+
+    Consumer(Container container){
+        this.container = container;
+    }
+
+    @Override
+    public void run() {
+        while(true) {
+            int e;
+            try {
+                e = container.Get();
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
         }
     }
 }
@@ -2386,7 +2519,7 @@ public class MyThread{
 进入就绪状态的4种情况：
 
 1. start()
-2. 由阻塞状态接触
+2. 由阻塞状态结束
 3. yield()
 4. JVM调度
 
@@ -2500,7 +2633,136 @@ public class MyThread implements Runnable{
 
 Executors类似线程工厂，ThreadPoolExecutor类实现了Executors接口，通过这个接口，任何Runnable对象都可以被它调用。
 
+#### 定时调度
 
+```JAVA
+/**
+ * 借助Timer类和TimeTask类实现
+ */
+
+public class TimeTask01 {
+    public static void main(String[] args) {
+        Timer timer = new Timer();
+        Calendar cal = new GregorianCalendar(2099,12,31,21,53,54);
+        timer.schedule(new MyTask01(),cal.getTime(),1000);
+    }
+}
+
+class MyTask01 extends TimerTask {
+    @Override
+    public void run() {
+        System.out.println("xwl");
+    }
+}
+
+
+```
+
+#### ThreadLocal
+
+```java
+public class ThreadLocalTest01 {
+//    private static ThreadLocal<Integer> threadLocal = new ThreadLocal<>(){
+//        @Override
+//        protected Integer initialValue() {
+//            return 200;
+//        }
+//    };
+    private static ThreadLocal threadLocal = ThreadLocal.withInitial(()->{
+        return 200;
+    });
+
+    public static void main(String[] args) {
+        System.out.println(Thread.currentThread().getName()+ "-->"+ threadLocal.get());
+        threadLocal.set(100);
+
+        new Thread(new MyRun()).start();
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(Thread.currentThread().getName()+ "-->"+ threadLocal.get());
+    }
+
+    public static class MyRun implements Runnable{
+        @Override
+        public void run() {
+            threadLocal.set((int)Math.random()*99);     //不影响主线程的值
+            System.out.println(Thread.currentThread().getName()+ "-->"+ threadLocal.get());
+        }
+    }
+}
+
+```
+
+线程之间独立的工作区，不共享；分析上下文，看是谁调用的threadLocal，则调用的是谁的工作区
+
+InheritableThreadLocal：继承上下文环境的数据，拷贝一份给自线程
+
+#### 自定义可重入锁
+
+```java
+public class ReentrantLock {
+    public static void main(String[] args) {
+        ReLock lock = new ReLock();
+        lock.lock();
+        lock.doSomething();
+        lock.unLock();
+    }
+}
+
+class ReLock{
+    private boolean locked = false;
+    private Thread lockedBy = null;
+    private int holdCount = 0;
+
+    public synchronized void lock(){
+        Thread t = Thread.currentThread();
+        while(locked &&  lockedBy != t){
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        locked = true;
+        lockedBy = t;
+        holdCount++;
+    }
+
+    public synchronized void unLock(){
+        Thread t = Thread.currentThread();
+        if(lockedBy == t){
+            holdCount--;
+            if(holdCount ==0 ){
+                lockedBy = null;
+                locked = false;
+                notify();
+            }
+        }
+    }
+
+    public void doSomething(){
+        System.out.println(holdCount);
+        lock();
+        System.out.println(holdCount);
+        unLock();
+        System.out.println(holdCount);
+    }
+}
+```
+
+#### 原子操作
+
+悲观锁：synchronized是独占锁即悲观所，会导致其它所有需要锁的线程挂起，等待持有锁的线程释放锁；
+
+乐观锁：每次不加锁而是假设没有冲突而去完成某项操作，如果因为冲突失败就重试，直到成功为止。
+
+CAS：比较并交换，java中可使用并发包中的AtomicInteger实现秒杀。
 
 ### 七、IO
 
@@ -2676,7 +2938,165 @@ public class PrintTest {
 
 
 
+### 八、网络编程
 
+URI = URL+URN(统一资源名称)
+
+```java
+URL url = new URL("http://www.xiuwenli.cn:8080/index.html?name=xwl&pswd=123#a");
+```
+
+#### URLConnection
+
+```java
+
+public class Srawler {
+    public static void main(String[] args) throws IOException {
+        URL url = new URL("https://www.dianping.com");
+
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+
+        con.setRequestMethod("GET");
+        con.setRequestProperty("User-Agent" ,
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36");
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
+        String msg = null;
+        while(null != (msg= reader.readLine())){
+            System.out.println(msg);
+        }
+    }
+}
+
+```
+
+
+
+#### UDP
+
+```java
+/**
+ * 接收端
+ * 1. 使用DatagramSocket 指定端口 创建接收端
+ * 2. 准备容器 封装成DataGramPacket 包裹
+ * 3. 阻塞式接收包裹receive(DataGramPacket p)
+ * 4. 分析数据
+ *      byte[] getData()
+ *              getLength()
+ */
+public class UDPReceive {
+    public static void main(String[] args) throws SocketException {
+        System.out.println("接收端开启");
+        DatagramSocket server = new DatagramSocket(9999);
+        byte[] container = new byte[1024*60];                   //容器
+        DatagramPacket packet = new DatagramPacket(container,0,container.length);
+        try {
+            server.receive(packet);             //阻塞式接收
+            byte[] data = packet.getData();
+            int len  = packet.getLength();
+//            System.out.println(new String(data));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally {
+            server.close();
+        }
+    }
+}
+```
+
+```java
+/**
+ * 接收端
+ * 1. 使用DatagramSocket 指定端口 创建接收端
+ * 2. 准备数据 转成字节数组
+ * 3. 封装成DataGramPacket 指定目的地和端口
+ * 4 阻塞式接收包裹send(DataGramPacket p)
+ * 5. 释放资源
+ */
+public class UDPSend {
+    public static void main(String[] args) throws SocketException {
+        System.out.println("发送方准备中...");
+        DatagramSocket client = new DatagramSocket(8888);
+        String data = "XWL";
+        byte[] bytes = data.getBytes();
+        DatagramPacket packet = new DatagramPacket(bytes,0, data.length(),
+                new InetSocketAddress("localhost",9999));
+
+        try {
+            client.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally {
+            client.close();
+        }
+    }
+}
+
+```
+
+传对象：
+
+```java
+public class UDPFileReceive {
+    public static void main(String[] args) throws SocketException {
+        System.out.println("接收端开启");
+        DatagramSocket server = new DatagramSocket(9999);
+        byte[] container = new byte[1024*60];                   //容器
+        DatagramPacket packet = new DatagramPacket(container,0,container.length);
+        try {
+            server.receive(packet);             //阻塞式接收
+//            DataInputStream dis = new DataInputStream(new BufferedInputStream(new ByteArrayInputStream(packet.getData())));
+//            System.out.println(dis.readInt());
+//            System.out.println(dis.readUTF());
+            ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new ByteArrayInputStream(packet.getData())));
+            MyPacket mp = (MyPacket) ois.readObject();
+            System.out.println(mp.id+" "+mp.name);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+```
+
+```java
+public class UDPFileSend {
+    public static void main(String[] args) throws IOException {
+        System.out.println("发送方准备中...");
+        DatagramSocket client = new DatagramSocket(8888);
+        ByteArrayOutputStream bais = new ByteArrayOutputStream();
+//        DataOutputStream dos = new DataOutputStream(bais);
+//        dos.writeInt(1);
+//        dos.writeUTF("李修文");
+//        dos.flush();
+
+        MyPacket obj = new MyPacket();
+        obj.id = 15;
+        obj.name ="lxw";
+
+        ObjectOutputStream oos = new ObjectOutputStream(bais);
+        oos.writeObject(obj);
+        oos.flush();
+
+        byte[] bytes = bais.toByteArray();
+
+
+        DatagramPacket packet = new DatagramPacket(bytes,0, bytes.length,
+                new InetSocketAddress("localhost",9999));
+
+        try {
+            client.send(packet);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }finally {
+            client.close();
+        }
+    }
+}
+```
 
 ### *其他
 
