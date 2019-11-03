@@ -236,15 +236,16 @@ public class DoubleCheckedLocking {
 
 当CPU在运行时，存在后序指令先于之前的指令结束的可能。代码执行顺序与预期的不一致，目的提高性能。
 
-1. 指令重排不可违背的基本原则：
-2. 程序顺序原则：一个线程内保证语义的串行性；
-3. volatile规则：volatile变量的写先于读发生，这保证了volatile变量的可见性
-4. 锁规则：解锁(unlock)必然发生于加锁(lock)前；
-5. 传递性：A先于B，B先于C，则A必先于C；
-6. 线程的start()方法先于它的每一个动作；
-7. 线程的所有操作先于线程的终结Thread.join()；
-8. 线程的中断(interrupt())先于被中断线程的代码；
-9. 对象的构造函数的执行、结束先于finalize()方法；
+指令重排不可违背的基本原则：
+
+1. 程序顺序原则：一个线程内保证语义的串行性；
+2. volatile规则：volatile变量的写先于读发生，这保证了volatile变量的可见性
+3. 锁规则：解锁(unlock)必然发生于加锁(lock)前；
+4. 传递性：A先于B，B先于C，则A必先于C；
+5. 线程的start()方法先于它的每一个动作；
+6. 线程的所有操作先于线程的终结Thread.join()；
+7. 线程的中断(interrupt())先于被中断线程的代码；
+8. 对象的构造函数的执行、结束先于finalize()方法；
 
 ```java
 public class HappenBefore {
@@ -722,7 +723,7 @@ class Item{
 
 
 ```java
-package consumerProducer;//还有bug
+package consumerProducer;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -1561,4 +1562,290 @@ public class UDPTalk02 {
 
 #### TCP
 
-服务端和客户端不平等，服务端需要打开一个端口监听客户端的连接。x
+服务端和客户端不平等，服务端需要打开一个端口监听客户端的连接。
+
+多人聊天室-server
+
+```java
+package tcp;
+
+import javax.xml.crypto.Data;
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+public class Server01 {
+
+    public static void main(String[] args) throws IOException {
+        ServerSocket server = new ServerSocket(8888);
+        CopyOnWriteArrayList<Listen> connections = new CopyOnWriteArrayList<>();
+
+        Boolean isRun = true;
+        while(isRun){
+            Socket client = server.accept();
+            System.out.println("一个用户建立了连接");
+
+            new Thread(()->{
+                //建立了一个连接
+                DataInputStream dis =  null;
+                DataOutputStream dos = null;
+                String name = null, pswd = null;
+
+                try {
+                    dos = new DataOutputStream(client.getOutputStream());
+                    dis = new DataInputStream(client.getInputStream());
+                    name = dis.readUTF();
+                    pswd = dis.readUTF();
+                    if(!check(name,pswd)){
+                        System.out.println(name+"认证失败");
+                        dos.writeUTF("fail");
+                        return;
+                    }
+                    else{
+                        System.out.println(name+ "进入了聊天室");
+                        dos.writeUTF("success");
+                    }
+                    dos.flush();
+                } catch (IOException e) {       //出错就关闭连接
+                    IOUtil.close(client);
+                    return;
+                }
+
+                Listen myListen = new Listen(client,connections,name);
+
+                connections.add(myListen);
+                Thread relay = new Thread(myListen);
+                relay.start();
+            }).start();
+        }
+        server.close();
+    }
+
+    static boolean check(String name, String pswd){
+        return true;
+    }
+}
+
+class Listen implements Runnable{
+    Socket client = null;
+    CopyOnWriteArrayList<Listen> connections = null;
+    DataInputStream dis = null;
+    DataOutputStream dos = null;
+    String id;
+
+    public Listen(Socket client, CopyOnWriteArrayList<Listen> conn,String name){
+        this.client = client;
+        this.connections = conn;
+        this.id = name;
+        try {
+            dis = new DataInputStream(client.getInputStream());
+            dos = new DataOutputStream(client.getOutputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+            close();
+        }
+    }
+
+    public void sendOthers(String msg) throws IOException {
+        for(Listen s: connections){
+            if(s == this){
+                continue;
+            }
+            s.sendToMe(msg);
+        }
+    }
+
+    public void sendToMe(String msg) throws IOException {
+        dos.writeUTF(msg);
+        dos.flush();
+    }
+
+    @Override
+    public void run() {
+        boolean isRunnable = true;
+        while(isRunnable){
+            String msg = null;
+            DataOutputStream dos = null;
+            try {
+                msg = dis.readUTF();
+                String convert = id+":"+msg;
+                System.out.println(convert);
+                sendOthers(convert);
+                //结束
+                if(msg.equals("bye")){
+                    isRunnable = false;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                isRunnable = false;
+            }
+        }
+        this.close();
+    }
+
+    private void close(){
+        connections.remove(this.id);
+
+        IOUtil.close(dis,client);
+        System.out.println(connections.size());
+    }
+}
+
+
+class IOUtil{
+    static void close(Closeable ... closeables){
+        for(Closeable t: closeables){
+            if(t!=null){
+                try {
+                    t.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+}
+
+```
+
+client
+
+```java
+package tcp;
+
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class Talk02 {
+    public static void main(String[] args) throws IOException, InterruptedException {
+        Socket client = new Socket("localhost",8888);
+        BufferedReader console = new BufferedReader(new InputStreamReader(System.in));
+        System.out.print("输入用户名:");
+        String name = console.readLine();
+        System.out.print("输入密码:");
+        String pswd = console.readLine();
+        DataInputStream dis = new DataInputStream(client.getInputStream());
+        DataOutputStream dos = new DataOutputStream(client.getOutputStream());
+        dos.writeUTF(name);
+        dos.writeUTF(pswd);
+        dos.flush();
+        String res = dis.readUTF();
+        System.out.println(res);
+//        dos.close(); dis.close();
+
+        if(res.equals("success")){
+
+            MyConnect con = new MyConnect(client);
+            Thread t1 = new Thread(new ClientListen(con));
+            Thread t2 = new Thread(new ClientSend(con));
+            t1.start(); t2.start();
+            t2.join(); t2.join();
+            System.out.println("结束");
+        }
+    }
+}
+
+class MyConnect{
+    Socket client;
+    DataInputStream dis;
+    DataOutputStream dos;
+    boolean isUsing = false;
+
+    public MyConnect(Socket client) {
+        this.client = client;
+
+        try {
+            dis = new DataInputStream(client.getInputStream());
+            dos = new DataOutputStream(client.getOutputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String read() throws IOException {
+        String msg = null;
+        isUsing = true;
+        if(!client.isClosed()){
+            msg = dis.readUTF();
+        }
+        isUsing = false;
+        return msg;
+    }
+
+    public boolean send(String msg) throws IOException {
+        if(client.isClosed()){
+            return false;
+        }
+
+        dos.writeUTF(msg);
+        dos.flush();
+        if(msg.equals("bye")){
+            dos.close();
+            dis.close();
+            client.close();
+        }
+        return true;
+    }
+}
+
+class ClientListen implements Runnable{
+    private MyConnect connect;
+
+    public ClientListen(MyConnect connect){
+        this.connect = connect;
+    }
+
+    @Override
+    public void run() {
+        boolean isRunnable = true;
+        while(isRunnable){
+            String msg = null;
+            try {
+                msg = connect.read();
+            } catch (IOException e) {
+                e.printStackTrace();
+                isRunnable = false;
+            }
+            if(msg == null){
+                isRunnable = false;
+            }
+            System.out.println(msg);
+        }
+    }
+}
+
+class ClientSend implements Runnable{
+    private MyConnect connect;
+    private BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+    public ClientSend(MyConnect connect){
+        this.connect = connect;
+    }
+
+    @Override
+    public void run() {
+        boolean isRunnable = true;
+        while(isRunnable){
+            String msg = null;
+            try {
+                msg = reader.readLine();
+                if(msg.equals("")) continue;
+
+                boolean res = connect.send(msg);
+                if(!res){
+                    isRunnable = false;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("写报错，退出");
+                isRunnable = false;
+            }
+        }
+    }
+}
+```
+

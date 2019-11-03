@@ -193,6 +193,15 @@ systemctl stop docker
 
 https://hub.docker.com/
 
+```
+docker ps -a
+
+
+
+docker stop container_id
+docker rm containter_id
+```
+
 
 
 
