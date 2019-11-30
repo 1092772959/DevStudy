@@ -83,17 +83,69 @@ git clone (url)
 
 ### 6. 分支管理
 
-克隆远程仓库的某一个分支
+- 克隆远程仓库的某一个分支
 
 ```bash
 git clone -b (分支名) (url)
 ```
 
-删除分支
+- 删除分支
 
 ```bash
 git push origin :[分支名]
 ```
+
+- 查看项目的分支
+
+```bash
+git branch -a
+```
+
+- 删除本地分支
+
+```bash
+git branch -d <BranchName>
+```
+
+- 删除远程分支
+
+```bash
+git push origin --delete <BranchName>
+```
+
+- 新建本地分支
+
+```bash
+git branch 本地分支名
+```
+
+- 新建本地分支并切换到指定远程分支
+
+```bash
+ git checkout -b 本地分支名 origin/远程分支名
+```
+
+该命令可以将远程`git`仓库里的指定分支拉取到本地，这样就在本地新建了一个`dev`分支，并和指定的远程分支`release/caigou_v1.0`关联了起来。
+
+- 将本地分支推送到远程
+
+```bash
+git push <远程主机名> <本地分支名>:<远程分支名>
+```
+
+
+
+#### 合并
+
+- 从当前分支合并到指定分支
+
+```bash
+git merge <本地分支名>
+```
+
+
+
+
 
 ### 7. gitignore
 
@@ -125,3 +177,57 @@ git add .gitignore
 git commit -m "update .gitignore"
 ```
 
+
+
+### 8. submodule
+
+ref: https://www.jianshu.com/p/0107698498af
+
+- 添加子项目
+
+```bash
+git submodule add <submodule_url>  # 添加子项目
+
+git submodule init  # 初始化本地.gitmodules文件
+git submodule update  # 同步远端submodule源码
+```
+
+添加子项目后会出现.gitmodules的文件，这是一个配置文件，记录mapping between the project's URL and the local subdirectory。且.gitmodules在git版本控制中，这样其他参与项目的人才能知道submodule projects的情况。
+
+- clone主项目的同时获取所有化子项目代码
+
+```bash
+git clone --recurse-submodules <main_project_url>  # 获取主项目和所有子项目源码
+```
+
+如果获取的项目包含submodules，pull main project的时候不会同时获取submodules的源码，需要执行本地.gitmodules初始化的命令，再同步远端submodule源码。如果希望clone main project的时候包含所有submodules，可以使用下面的命令。
+
+操作submodules源码：先进入submodule的direcotry，再执行下述命令
+
+```shell
+git fetch  # 获取submodule远端源码
+git merge origin/<branch_name>  # 合并submodule远端源码
+git pull  # 获取submodule远端源码合并到当前分支
+git checkout <branch_name>  # 切换submodule的branch
+git commit -am "change_summary"  # 提交submodule的commit
+
+# or
+
+# 更新submodule源码，默认更新的branch是master，如果要修改branch，在.gitmodule中设置
+git submodule update --remote <submodule_name>  
+# 更新所有submodule源码，默认更新.gitmodule中设置的跟踪分支，未设置则跟踪master
+git submodule update --remote  
+# 当submodule commits提交有问题的时候放弃整个push
+git push --recurse-submodules=check
+# 分开提交submodule和main project
+git push --recurse-submodules=on-demand
+```
+
+.gitmodule内容大致如下
+
+```bash
+[submodule <submodule_name>]
+    path = <local_directory>
+    url = <remote_url>
+    branch = <remote_update_branch_name>
+```
