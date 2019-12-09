@@ -175,3 +175,73 @@ r=4，w=2，x=1
 chmod 777 file		# equels chmod a=rwx file
 ```
 
+*注意要指定file是当前目录的文件，否则系统会去PATH里寻找file.sh的
+
+
+
+### 文件
+
+#### 增删查改
+
+- 复制整个文件夹
+
+```bash
+cp -r dir1 dir2
+```
+
+- 删除整个文件夹
+
+```bash
+rm -rf dir
+```
+
+- 移动
+
+```bash
+mv src_dir dest_dir
+```
+
+
+
+
+
+#### 链接
+
+- 软连接
+
+```bash
+sudo ln -s /usr/bin/python2.7 /usr/bin/python		
+```
+
+
+
+
+
+#### 远程下载
+
+```bash
+wget url
+```
+
+
+
+- 指定目录下载
+
+```bash
+wget url -P dir
+```
+
+
+
+- 指定文件名下载
+
+```bash
+wget -O 1.txt http://www.baidu.com/index.html
+```
+
+
+
+
+
+
+

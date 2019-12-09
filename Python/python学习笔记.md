@@ -44,6 +44,17 @@ for key, val in dic.items():
 
 
 
+字符串转回原类型
+
+```python
+dic = eval(string)
+
+```
+
+*如果包含了复杂对象，如date等，需要写一个decoder
+
+
+
 
 
 ### 生成器
@@ -445,7 +456,7 @@ import re
 
 
 
-## 多环境
+## 环境
 
 ### virtualenv
 
@@ -454,7 +465,7 @@ import re
 ```bash
 sudo pip install virtualenv
 
-sudo pip install virtualenvwrapper-win
+sudo pip install virtualenvwrapper
 ```
 
 - 创建虚拟环境
@@ -471,6 +482,40 @@ source venv_name/bin/activate
 #退出
 deactivate
 ```
+
+
+
+使用virtualenvwrapper进行管理
+
+
+
+
+
+
+
+### 环境变量
+
+- 打印当前工作目录
+
+```python
+import os
+print os.getwcd()
+```
+
+- 运行时添加环境变量
+
+```python
+import sys
+sys.path.append('path')
+```
+
+
+
+### 系统
+
+
+
+
 
 
 
@@ -810,7 +855,7 @@ print(obj)
 
 ## 库
 
-### datetime & time
+### time
 
 获取当前时间
 
@@ -834,9 +879,96 @@ print(datetime.utcfromtimestamp(ptr+100)) 	# UTC时间
 #str转datetime
 cday = datetime.strptime('2015-6-1 18:19:59', '%Y-%m-%d %H:%M:%S')
 
+
+
+
+
+
 ```
 
 
+
+
+
+### datetime
+
+做差
+
+```python
+from datetime import datetime
+import time
+dt1 = datetime.now()
+
+time.sleep(5)
+
+dt2 = datetime.now()
+
+res = dt2 - dt1
+
+print res
+
+
+
+
+```
+
+和time转换
+
+```python
+import datetime
+import time
+
+# 日期时间字符串
+st = "2017-11-23 16:10:10"
+# 当前日期时间
+dt = datetime.datetime.now()
+# 当前时间戳
+sp = time.time()
+
+# 1.把datetime转成字符串
+def datetime_toString(dt):
+    print("1.把datetime转成字符串: ", dt.strftime("%Y-%m-%d %H:%M:%S"))
+
+
+# 2.把字符串转成datetime
+def string_toDatetime(st):
+    print("2.把字符串转成datetime: ", datetime.datetime.strptime(st, "%Y-%m-%d %H:%M:%S"))
+
+
+# 3.把字符串转成时间戳形式
+def string_toTimestamp(st):
+    print("3.把字符串转成时间戳形式:", time.mktime(time.strptime(st, "%Y-%m-%d %H:%M:%S")))
+
+
+# 4.把时间戳转成字符串形式
+def timestamp_toString(sp):
+    print("4.把时间戳转成字符串形式: ", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(sp)))
+
+
+# 5.把datetime类型转外时间戳形式
+def datetime_toTimestamp(dt):
+    print("5.把datetime类型转外时间戳形式:", time.mktime(dt.timetuple()))
+
+
+```
+
+
+
+
+
+
+
+### logging
+
+```python
+import logging
+
+logging.basicConfig(
+        level=logging.INFO,		#设置提示的
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+```
 
 
 

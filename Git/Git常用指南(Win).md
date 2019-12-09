@@ -1,5 +1,22 @@
 ## Git常用指南(Win)
 
+### 理论基础
+
+Git本地有三个工作区域：工作目录（Working Directory）、暂存区(Stage/Index)、资源库(Repository或Git Directory)。如果在加上远程的git仓库(Remote Directory)就可以分为四个工作区域。
+
+![img](https://images2017.cnblogs.com/blog/63651/201709/63651-20170905201017069-171460014.png)
+
+
+
+- Workspace：工作区，就是你平时存放项目代码的地方
+- Index / Stage：暂存区，用于临时存放你的改动，事实上它只是一个文件，保存即将提交到文件列表信息
+- Repository：仓库区（或本地仓库），就是安全存放数据的位置，这里面有你提交到所有版本的数据。其中HEAD指向最新放入仓库的版本
+- Remote：远程仓库，托管代码的服务器，可以简单的认为是你项目组中的一台电脑用于远程数据交换
+
+
+
+
+
 *来自廖雪峰老师的教程
 
 ### 1. 安装
@@ -28,13 +45,35 @@ $ git init
 1.添加
 
 ```bash
-$ git add .				#使用.表示将该目录下全部文件添加
+git add .				#使用.表示将该目录下全部文件添加
+
+#git add -u   保存修改和删除，但是不包括新建文件。
+
+#git add -A   保存所有的修改
 ```
 
 2.用命令`git commit`告诉Git，把文件提交到仓库：
 
 ```bash
-$ git commit -m "wrote a readme file"			# -m 后是本次提交的说明
+git commit -m "wrote a readme file"			# -m 后是本次提交的说明
+```
+
+3.git rm
+
+当我们需要删除`暂存区`或`分支`上的文件, 同时工作区也不需要这个文件了, 可以使用
+
+```
+1 git rm file_path
+2 git commit -m 'delete somefile'
+3 git push
+```
+
+当我们需要删除`暂存区`或`分支`上的文件, 但本地又需要使用, 只是不希望这个文件被版本控制, 可以使用
+
+```
+git rm --cached file_path
+git commit -m 'delete remote somefile'
+git push
 ```
 
 
@@ -69,7 +108,7 @@ git push origin master			#仓库不为空
 
 #### 下拉
 
-`git pull` 命令基本上就是 `git fetch` 和 `git merge` 命令的组合体，Git 从指定的远程仓库中抓取内容，然后马上尝试将其合并进你所在的分支中。
+`git pull` 命令基本上就是 `git fetch` 和 `git merge origin/master` 命令的组合体，Git 从指定的远程仓库中抓取内容，然后马上尝试将其合并进你所在的分支中。合并可能会遇到冲突，需要手动处理。
 
 
 
@@ -87,12 +126,6 @@ git clone (url)
 
 ```bash
 git clone -b (分支名) (url)
-```
-
-- 删除分支
-
-```bash
-git push origin :[分支名]
 ```
 
 - 查看项目的分支
@@ -188,7 +221,7 @@ ref: https://www.jianshu.com/p/0107698498af
 ```bash
 git submodule add <submodule_url>  # 添加子项目
 
-git submodule init  # 初始化本地.gitmodules文件
+git submodule init  # 初始化		本地.gitmodules文件
 git submodule update  # 同步远端submodule源码
 ```
 
@@ -231,3 +264,56 @@ git push --recurse-submodules=on-demand
     url = <remote_url>
     branch = <remote_update_branch_name>
 ```
+
+
+
+### 9. LSF
+
+Git LFS 是 Github 开发的一个 Git 的扩展，用于实现 Git 对大文件的支持
+
+#### 安装
+
+- **Linux**
+
+1.  `curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash`
+2. `sudo apt-get install git-lfs`
+3. `git lfs install`
+
+- **Mac**
+
+1. 安装HomeBrew `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"` 
+2. `brew install git-lfs`
+3. `git lfs install`
+
+- **Windows**
+
+1. 下载安装 [windows installer](https://link.jianshu.com?t=https%3A%2F%2Fgithub.com%2Fgithub%2Fgit-lfs%2Freleases) 
+2. 运行 windows installer
+3. 在命令行执行 `git lfs install`
+
+
+
+#### 首次使用
+
+第一次使用前需要运行下 `git lfs install`，只要运行一次，以后都不需要了
+
+#### 日常使用
+
+需要用lfs管理的文件要添加到追踪列表里，一般而言，把某个类型的文件统一用lfs管理会是个好注意，例如我们把dll文件用lfs管理`git lfs track '*.dll'`
+
+此时，仓库的根目录下会自动创建.gitattribute文件，里面就记录了使用lfs的文件后续添加新的类型可以用`git lfs track`命令，也可以直接编辑.gitattribute文件
+
+**注意：.gitattribute文件需要添加到git仓库中进行版本管理**
+
+文件追踪之后，后续的所有操作都是和git的普通操作一致了
+
+#### 辅助命令
+
+`git lfs ls-files`：查看当前有哪些文件是使用lfs管理的
+
+
+
+
+
+
+
