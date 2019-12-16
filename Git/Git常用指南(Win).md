@@ -45,35 +45,17 @@ $ git init
 1.添加
 
 ```bash
-git add .				#使用.表示将该目录下全部文件添加
+git add .				#使用.表示将该目录下全部文件添加，包括修改和新建，不包括删除的修改
 
 #git add -u   保存修改和删除，但是不包括新建文件。
 
-#git add -A   保存所有的修改
+#git add -A   保存所有的修改	
 ```
 
 2.用命令`git commit`告诉Git，把文件提交到仓库：
 
 ```bash
 git commit -m "wrote a readme file"			# -m 后是本次提交的说明
-```
-
-3.git rm
-
-当我们需要删除`暂存区`或`分支`上的文件, 同时工作区也不需要这个文件了, 可以使用
-
-```
-1 git rm file_path
-2 git commit -m 'delete somefile'
-3 git push
-```
-
-当我们需要删除`暂存区`或`分支`上的文件, 但本地又需要使用, 只是不希望这个文件被版本控制, 可以使用
-
-```
-git rm --cached file_path
-git commit -m 'delete remote somefile'
-git push
 ```
 
 
@@ -212,6 +194,28 @@ git commit -m "update .gitignore"
 
 
 
+#### rm
+
+当我们需要删除`暂存区`或`分支`上的文件, 同时工作区也不需要这个文件了, 可以使用
+
+```
+1 git rm file_path
+2 git commit -m 'delete somefile'
+3 git push
+```
+
+当我们需要删除`暂存区`或`分支`上的文件, 但本地又需要使用, 只是不希望这个文件被版本控制, 可以使用
+
+```
+git rm --cached file_path
+git commit -m 'delete remote somefile'
+git push
+```
+
+
+
+
+
 ### 8. submodule
 
 ref: https://www.jianshu.com/p/0107698498af
@@ -301,7 +305,7 @@ Git LFS 是 Github 开发的一个 Git 的扩展，用于实现 Git 对大文件
 
 需要用lfs管理的文件要添加到追踪列表里，一般而言，把某个类型的文件统一用lfs管理会是个好注意，例如我们把dll文件用lfs管理`git lfs track '*.dll'`
 
-此时，仓库的根目录下会自动创建.gitattribute文件，里面就记录了使用lfs的文件后续添加新的类型可以用`git lfs track`命令，也可以直接编辑.gitattribute文件
+后续添加新的类型可以用`git lfs track`命令，也可以直接编辑.gitattribute文件
 
 **注意：.gitattribute文件需要添加到git仓库中进行版本管理**
 
@@ -314,6 +318,74 @@ Git LFS 是 Github 开发的一个 Git 的扩展，用于实现 Git 对大文件
 
 
 
+
+
+
+### others
+
+- **git status** 查看对 repo 中哪些文件进行了修改。如果不在 repo 里但修改了的文件是不会出现在 **git status** 列表里的
+
+- git add -u
+
+  添加已经在 repo 中，但进行了修改的文件。比以下两个命令好用且安全得多：
+
+  - 添加所有文件 **git add .** --> 容易误加文件
+  - 手动添加一堆文件 **git add ** --> 效率太低
+
+- **git show ** 显示某条 commit 的修改，不加 commit id, 则默认显示最近一条 commit
+
+- **git diff ** 在还没 commit 前，查看修改的内容，filename 不加则默认显示所有文件的 diff
+
+- **git stash** 缓存已经在 repo 里但做过修改的文件，经常用于项目修改到一半，需要 **git pull** 最新代码或是 hotfix 一些小的 bug。 使用 **git stash pop** 恢复这些修改。
+
+- **git blame ** 可以看到某个文件每一行的最后修改者，方便追朔问题。比如看到某一行代码不太懂，可以 **git blame**，然后直接去询问最后一个修改者就行
+
+- **git commit --amend** 可以修改最后一条 commit
+
+- **git reset ** 用于去掉那些 git add 但还没 git commit 的文件 https://www.jianshu.com/p/c2ec5f06cf1a
+
+- **git cherry-pick** 一般用于 merge 单条的经过 rebase 的 commit
+
+
+
+### 撤销提交
+
+#### reset
+
+**git reset --soft**
+
+将HEAD引用指向给定提交。索引（暂存区）和工作目录的内容是不变的，在三个命令中对现有版本库状态改动最小。
+
+**git reset --mixed（git reset默认的模式）**
+
+HEAD引用指向给定提交，并且索引（暂存区）内容也跟着改变，工作目录内容不变。这个命令会将索引（暂存区）变成你刚刚暂存该提交全部变化是的状态，会显示工作目录中有什么修改。
+
+**git reset --hard**
+
+HEAD引用指向给定提交，索引（暂存区）内容和工作目录内容都会变给定提交时的状态。也就是在给定提交后所修改的内容都会丢失(新文件会被删除，不在工作目录中的文件恢复，未清除回收站的前提)。
+
+
+
+#### commit --amend
+
+
+
+
+
+
+
+#### checkout
+
+未使用git add 缓存代码时：
+
+```shell
+// 放弃单个文件修改,注意不要忘记中间的"--",不写就成了检出分支了!
+git checkout -- filepathname
+// 放弃所有的文件修改
+git checkout .  
+```
+
+此命令用来放弃掉所有还没有加入到缓存区（就是 git add 命令）的修改：内容修改与整个文件删除。但是此命令不会删除掉刚新建的文件，因为刚新建的文件还没已有加入到 git 的管理系统中。
 
 
 

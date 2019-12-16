@@ -156,7 +156,11 @@ print(res)
 
 
 
-#### sorted
+
+
+
+
+### 面向对象
 
 
 
@@ -229,7 +233,7 @@ re.sub(pattern, repl, string, count=0, flags=0)
 
 
 - pattern : 正则中的模式字符串。
-- repl : 替换的字符串，也可为一个函数。
+- repl : 替换成为的字符串，也可为一个函数。
 - string : 要被查找替换的原始字符串。
 - count : 模式匹配后替换的最大次数，默认 0 表示替换所有的匹配。
 
@@ -376,6 +380,10 @@ import re
 ```
 
 
+
+#### re.DOTALL
+
+匹配包括换行符在内的任意字符，可以匹配多行输入的字符串
 
 
 
@@ -979,6 +987,8 @@ logger = logging.getLogger(__name__)
 ```bash
 find . -name '*.py' -print0 | xargs -0 yapf -i		#对当前目录的python代码格式化
 ```
+
+
 
 
 
