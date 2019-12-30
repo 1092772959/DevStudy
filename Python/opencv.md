@@ -1,4 +1,8 @@
-### 
+ 
+
+https://www.kancloud.cn/aollo/aolloopencv/260405
+
+
 
 #### 读写图片
 
@@ -158,6 +162,26 @@ cv2.copyMakeBorder()
             cv2.BORDER_REPLICATE, 边缘元素的复制做为边界
             CV2.BORDER_WRAP
         value: borderType为cv2.BORDER_CONSTANT时，传入的边界颜色值，如[0,255,0]
+```
+
+
+
+从二进制读图片：
+
+```python
+
+```
+
+
+
+导出二进制：
+
+1. cv2.IMWRITE_JPEG_QUALITY 设置图片格式为.jpeg或者.jpg的图片质量，其值为0---100（数值越大质量越高），默认95
+2.  cv2.IMWRITE_WEBP_QUALITY 设置图片的格式为.webp格式的图片质量，值为0--100
+3.  cv2.IMWRITE_PNG_COMPRESSION 设置.png格式的压缩比，其值为0--9（数值越大，压缩比越大），默认为3
+
+```python
+cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 90])[1] 
 ```
 
 

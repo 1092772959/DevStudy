@@ -270,7 +270,7 @@ tar [选项] 压缩包 源文件或目录
 - -j：压缩和解压缩 ".tar.bz2"格式。
 
 ```shell
-tar -zcvf tmp.tar.gz /tmp/
+tar -zcvf tmp.tar.gz /temp/
 #把/temp/目录直接打包压缩为".tar.gz"格式，通过"-z"来识别格式，"-cvf"和打包选项一致
 ```
 
@@ -821,4 +821,36 @@ w [选项] [用户名]
 | JCPU   | 和该终端连接的所有进程占用的 CPU 运算时间。这个时间里并不包括过去的后台作业时间，但是包括当前正在运行的后台作业所占用的时间。 |
 | PCPU   | 当前进程所占用的 CPU 运算时间。                              |
 | WHAT   | 当前用户正在执行的进程名称和选项，换句话说，就是表示用户当前执行的是什么命令。 |
+
+
+
+
+
+## 专用软件
+
+### opencv
+
+查看linux下的opencv安装库：
+
+```sql
+pkg-config opencv --libs
+```
+
+查看linux下的opencv安装版本：
+
+```
+pkg-config opencv --modversion
+```
+
+查看linux下的opencv安装路径：
+
+```swift
+sudo find / -iname "*opencv*"
+```
+
+在全盘上不区分大小写，搜索带有关键字opencv的所有文件及文件夹都会输出到终端，如果输出太长建议输出到txt文件里查看，如下：
+
+```ruby
+sudo find / -iname "*opencv*" > /home/ubuntu/Desktop/opencv_find.txt
+```
 
