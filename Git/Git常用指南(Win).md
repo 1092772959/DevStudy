@@ -58,11 +58,90 @@ git add .				#使用.表示将该目录下全部文件添加，包括修改和�
 git commit -m "wrote a readme file"			# -m 后是本次提交的说明
 ```
 
+3.用`git log`查看提交记录
+
+```bash
+git log
+
+#仅仅输出commit hash 前7个字符串和commit message.
+git log --oneline
+
+#在git log 的基础上输出文件增删改的统计数据。
+git log --stat
+
+#输出每个commit具体修改的内容，输出的形式以diff的形式给出。
+git log -p 
+
+#图形化
+git log --graph --pretty=oneline --abbrev-commit
+```
+
 
 
 ### 4. 版本控制
 
-这个在实际开发中会有重要作用
+#### reset
+
+**git reset --soft**
+
+将HEAD引用指向给定提交。索引（暂存区）和工作目录的内容是不变的，在三个命令中对现有版本库状态改动最小。
+
+**git reset --mixed（git reset默认的模式）**
+
+HEAD引用指向给定提交，并且索引（暂存区）内容也跟着改变，工作目录内容不变。这个命令会将索引（暂存区）变成你刚刚暂存该提交全部变化是的状态，会显示工作目录中有什么修改。
+
+**git reset --hard**
+
+HEAD引用指向给定提交，索引（暂存区）内容和工作目录内容都会变给定提交时的状态。也就是在给定提交后所修改的内容都会丢失(新文件会被删除，不在工作目录中的文件恢复，未清除回收站的前提)。
+
+
+
+#### commit --amend
+
+可以对之前的提交进行修改而不改变commit记录
+
+```bash
+git commit --amend --no-edit
+
+#之后在push的之后需要 -f
+```
+
+
+
+#### checkout
+
+未使用git add将文件提交到stage时：
+
+```shell
+// 放弃单个文件修改,注意不要忘记中间的"--",不写就成了检出分支了!
+git checkout -- filepathname
+// 放弃所有的文件修改
+git checkout .  
+```
+
+此命令用来放弃掉所有还没有加入到缓存区（就是 git add 命令）的修改：内容修改与整个文件删除。但是此命令不会删除掉刚新建的文件，因为刚新建的文件还没已有加入到 git 的管理系统中。
+
+
+
+#### rm
+
+将文件从stage中删除
+
+```bash
+git rm <file_name>
+```
+
+
+
+#### cherry-pick
+
+将过去
+
+```bash
+git cherry-pick 4c805e2
+```
+
+
 
 
 
@@ -104,6 +183,16 @@ git clone (url)
 
 ### 6. 分支管理
 
+- 新建并切换分支
+
+```bash
+git switch -c dev
+
+git switch master #仅切换分支
+```
+
+
+
 - 克隆远程仓库的某一个分支
 
 ```bash
@@ -114,6 +203,8 @@ git clone -b (分支名) (url)
 
 ```bash
 git branch -a
+
+git branch -vv	#包含远程库分支
 ```
 
 - 删除本地分支
@@ -156,6 +247,14 @@ git push <远程主机名> <本地分支名>:<远程分支名>
 
 ```bash
 git merge <本地分支名>
+```
+
+
+
+默认在合并时使用`Fast forward`模式，这样在记录中看不到合并的信息；如果要强制禁用`Fast forward`模式，Git就会在merge时生成一个新的commit，这样，从分支历史上就可以看出分支信息，可使用`--no-ff`方式commit
+
+```bash
+git merge --no-ff -m "merge with no-ff" dev
 ```
 
 
@@ -370,44 +469,11 @@ Git LFS 是 Github 开发的一个 Git 的扩展，用于实现 Git 对大文件
 
 
 
-### 撤销提交
-
-#### reset
-
-**git reset --soft**
-
-将HEAD引用指向给定提交。索引（暂存区）和工作目录的内容是不变的，在三个命令中对现有版本库状态改动最小。
-
-**git reset --mixed（git reset默认的模式）**
-
-HEAD引用指向给定提交，并且索引（暂存区）内容也跟着改变，工作目录内容不变。这个命令会将索引（暂存区）变成你刚刚暂存该提交全部变化是的状态，会显示工作目录中有什么修改。
-
-**git reset --hard**
-
-HEAD引用指向给定提交，索引（暂存区）内容和工作目录内容都会变给定提交时的状态。也就是在给定提交后所修改的内容都会丢失(新文件会被删除，不在工作目录中的文件恢复，未清除回收站的前提)。
-
-
-
-#### commit --amend
 
 
 
 
 
-
-
-#### checkout
-
-未使用git add 缓存代码时：
-
-```shell
-// 放弃单个文件修改,注意不要忘记中间的"--",不写就成了检出分支了!
-git checkout -- filepathname
-// 放弃所有的文件修改
-git checkout .  
-```
-
-此命令用来放弃掉所有还没有加入到缓存区（就是 git add 命令）的修改：内容修改与整个文件删除。但是此命令不会删除掉刚新建的文件，因为刚新建的文件还没已有加入到 git 的管理系统中。
 
 
 

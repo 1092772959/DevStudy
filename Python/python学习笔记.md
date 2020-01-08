@@ -478,22 +478,27 @@ sudo pip install virtualenvwrapper
 
 - 创建虚拟环境
 
-```bash
-virtualenv <venv_name>		#创建环境
-```
-
-- 激活该环境
+使用virtualenv
 
 ```bash
-source venv_name/bin/activate
+virtualenv <name> #会在当前目录线生成一个虚拟环境目录
 
-#退出
+source name/bin/activate
 deactivate
 ```
 
 
 
-使用virtualenvwrapper进行管理
+使用virtualenvwrapper
+
+```bash
+mkvirtualenv <venv_name>		#创建环境
+workon <venv_name>					#切换至该环境
+deactivate
+
+#删除
+rmvirtualenv <name>
+```
 
 
 
@@ -863,6 +868,106 @@ print(obj)
 
 ## 库
 
+### os
+
+1. 当前路径和其下文件
+
+```python
+import os
+os.getcwd()
+
+os.listdir(os.getcwd())
+#返回目录下的所有文件名
+```
+
+2. 获取绝对路径
+
+```python
+#os.path.abspath(path):返回path的绝对路径。
+
+os.path.abspath('.')
+```
+
+3. 查看路径和文件名
+
+os.path.split(path):将路径分解为(文件夹,文件名)，返回的是元组类型。可以看出，若路径字符串最后一个字符是\,则只有文件夹部分有值；若路径字符串中均无\,则只有文件名部分有值。若路径字符串有\，且不在最后，则文件夹和文件名均有值。且返回的文件夹的结果不包含\.
+
+os.path.join(path1,path2,...):将path进行组合，若其中有绝对路径，则之前的path将被删除。
+
+```python
+>>> os.path.split('D:\\pythontest\\ostest\\Hello.py')
+('D:\\pythontest\\ostest', 'Hello.py')
+>>> os.path.split('.')
+('', '.')
+>>> os.path.split('D:\\pythontest\\ostest\\')
+('D:\\pythontest\\ostest', '')
+>>> os.path.split('D:\\pythontest\\ostest')
+('D:\\pythontest', 'ostest')
+>>> os.path.join('D:\\pythontest', 'ostest')
+'D:\\pythontest\\ostest'
+>>> os.path.join('D:\\pythontest\\ostest', 'hello.py')
+'D:\\pythontest\\ostest\\hello.py'
+>>> os.path.join('D:\\pythontest\\b', 'D:\\pythontest\\a')
+'D:\\pythontest\\a'
+```
+
+
+
+- 只查看路径，不包含文件名
+
+```python
+os.path.dirname(path)
+```
+
+
+
+- 只查看文件名，不包含路径
+
+```python
+os.path.basename(path)
+```
+
+
+
+- 查看文件大小
+
+文件或文件夹的大小，若是文件夹返回0。
+
+```python
+os.path.getsize(path)
+```
+
+
+
+- 查看文件是否存在
+
+```python
+os.path.exists(path)
+```
+
+
+
+- 表现形式参数
+
+os中定义了一组文件、路径在不同操作系统中的表现形式参数，如：
+
+```python
+>>> os.sep
+'\\'
+>>> os.extsep
+'.'
+>>> os.pathsep
+';'
+>>> os.linesep
+'\r\n'
+```
+
+
+
+
+
+
+
 ### time
 
 获取当前时间
@@ -936,7 +1041,7 @@ sp = time.time()
 # 1.把datetime转成字符串
 def datetime_toString(dt):
     print("1.把datetime转成字符串: ", dt.strftime("%Y-%m-%d %H:%M:%S"))
-
+    #需年份>1970
 
 # 2.把字符串转成datetime
 def string_toDatetime(st):
@@ -958,6 +1063,22 @@ def datetime_toTimestamp(dt):
     print("5.把datetime类型转外时间戳形式:", time.mktime(dt.timetuple()))
 
 
+```
+
+
+
+json序列化
+
+```python
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            return obj.strftime('%Y-%m-%d %H:%M:%S')
+        elif isinstance(obj, datetime.date):
+            return obj.strftime('%Y-%m-%d')
+        return json.JSONEncoder.default(self, obj)
+
+json.dumps(obj, cls=DateTimeEncoder)
 ```
 
 

@@ -405,11 +405,96 @@ grep [选项] 模式 文件名
 
 
 
+#### ack
+
+https://beyondgrep.com/install/
+
+安装：
+
+- 新建一个名为ack的文件，在当前目录下`curl https://beyondgrep.com/ack-v3.3.0 > ack`
+- `chmod 0755 ack`
+- `sudo mv ack ~/usr/local/bin` 放在/usr/bin下也可
+
+例：
+
+```bash
+1.在当前目录递归搜索单词”eat”,不匹配类似于”feature”或”eating”的字符串:
+$ ack -w eat
+2.搜索有特殊字符的字符串’$path=.’,所有的元字符（比如’$',’.')需要在字面上被匹配:
+$ ack -Q '$path=.' /etc
+3.除了dowloads目录，在所有目录搜索”about”单词:
+$ ack about --ignore-dir=downloads
+4.只搜索包含’protected’单词的PHP文件，然后通过文件名把搜索结果整合在一起，打印每个文件对应的搜索结果:
+$ ack --php --group protected
+
+5.获取包含’CFLAG’关键字的Makefile的文件名。文件名为*.mk,makefile,Makefile,GNUmakefile的都在考虑范围内:
+$ ack --make -l CFLAG
+6.显示整个日志文件时高亮匹配到的字符串:
+$ tail -f /var/log/syslog | ack --passthru 192.168.1.10
+7.要换取ack支持的文件过滤类型，运行：
+$ ack --help-type
+```
+
+
+
+
+
+#### wc
+
+wc指令可以计算文件的Byte数、字数、或是列数，若不指定文件名称、或是所给予的文件名为"-"，则wc指令会从标准输入设备读取数据。
+
+```bash
+wc [-clw][--help][--version][文件...]
+
+
+```
+
+- -c或--bytes或--chars 只显示Bytes数。
+- -l或--lines 只显示行数。
+- -w或--words 只显示字数。
+- --help 在线帮助。
+- --version 显示版本信息。
+
+
+
+例：
+
+```bash
+$ wc testfile           # testfile文件的统计信息  
+3 92 598 testfile       # testfile文件的行数为3、单词数92、字节数598 
+```
+
+
+
+##### 统计目录下的文件数
+
+1.统计当前目录下文件的个数，包括子文件夹里的
+
+```bash
+ls -lR|grep "^-"|wc -l1
+```
+
+2.统计当前目录下文件的个数
+
+```bash
+ls -l |grep "^-"|wc -l1
+```
+
+3.统计当前目录下文件夹的个数
+
+```BASH
+ls -l |grep "^d"|wc -l
+```
+
+
+
 
 
 ### 系统管理
 
-查看系统版本信息
+
+
+#### 系统版本
 
 ```shell
 cat /proc/version
@@ -484,6 +569,8 @@ ps [选项]
 
 #### top
 
+交互式地查看进程运行情况
+
 ```shell
 top [选项]
 ```
@@ -508,6 +595,16 @@ top [选项]
 - k：按照 PID 给予某个进程一个信号。一般用于中止某个进程，信号 9 是强制中止的信号；
 - r：按照 PID 给某个进程重设优先级（Nice）值；
 - q：退出 top 命令；
+
+
+
+例：
+
+```bash
+top -H -p 288		#只查看288进程的资源使用情况
+```
+
+
 
 
 
