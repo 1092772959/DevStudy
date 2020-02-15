@@ -8,26 +8,29 @@
 ```bash
 # 在 ~ 下创建 go 文件夹，并进入 go 文件夹
 mkdir ~/go && cd ~/go
-下载的 go 压缩包
-wget https://dl.google.com/go/go1.11.5.linux-amd64.tar.gz
+下载的 go 压缩包	#在该官网中寻找需要的版本https://golang.org/dl/
+wget https://dl.google.com/go/go1.13.5.linux-amd64.tar.gz
 ```
 
 3. 执行tar解压到/usr/local目录下（官方推荐），得到go文件夹
 
 ```bash
-tar -C /usr/local -zxvf  go1.11.5.linux-amd64.tar.gz
+tar -C /usr/local -zxvf  go1.13.5.linux-amd64.tar.gz
 ```
 
-4. 添加`/usr/loacl/go/bin`目录到PATH变量中。添加到`/etc/profile` 或`$HOME/.profile`都可以
+4. 添加`/usr/loacl/go/bin`目录到PATH变量中。添加到`/etc/profile` 或`$HOME/.bash_profile`都可以
 
 ```bash
 # 习惯用vim，没有的话可以用命令`sudo apt-get install vim`安装一个
-vim /etc/profile
+vim ~/.bash_profile
+
 # 在最后一行添加
 export GOROOT=/usr/local/go
-export PATH=$PATH:$GOROOT/bin
-# 保存退出后source一下（vim 的使用方法可以自己搜索一下）
-source /etc/profile
+export GOPATH=$HOME/go #路径自定义，多GOPATH以 ： 分割
+export GOBIN=$GOPATH/bin
+export PATH=$PATH:$GOROOT/bin:$GOBIN
+
+source ~/.bash_profile
 ```
 
 5. 执行go version，查看版本号，验证安装是否成功
@@ -36,11 +39,41 @@ source /etc/profile
 
 
 
+### 环境变量
 
+#### GOBIN
+
+
+
+#### GOPATH
+
+- src
+
+存放项目源代码，不同的项目存放在其下不同的子目录中
+
+- pkg
+
+存放go install生成的非main包的动态链接文件.a，用于项目中import
+
+- bin
+
+即$GOBIN，存放由go install 生成的可执行文件，将GOBIN加入PATH之后可以直接指令执行
+
+#### go build
+
+在当前目录中生成main包的可执行文件
+
+#### go install
+
+即可以生成包文件（对非main包），也可以生成可执行文件（main包）
+
+#### go get
+
+可以暂时理解为git clone到$GOPATH/src + go install
 
 ## 二、基本语法
 
-### 变量
+### 变量 
 
 查看变量类型
 
@@ -143,6 +176,10 @@ str := "1" +
 ```
 
 
+
+注意：len(str)返回的是字符串的**字节数**
+
+如果串中的字符超过
 
 - 基本数据类型转换
 
@@ -278,7 +315,6 @@ foo()
 被捕获到闭包中的变量让闭包本身拥有了记忆效应，闭包中的逻辑可以修改闭包捕获的变量，变量会跟随闭包生命期一直存在，闭包本身就如同变量一样拥有了记忆效应。
 
 ```go
-
 // 提供一个值, 每次调用函数会指定对值进行累加
 func Accumulate(value int) func() int {
 	// 返回一个闭包
@@ -745,7 +781,6 @@ m1 := map[int]string{
 Go语言在 1.9 版本中提供了一种效率较高的并发安全的 sync.Map，sync.Map 和 map 不同，不是以语言原生形态提供，而是在 sync 包下的特殊结构。
 
 ```go
-
 func trySyncMap() {
 	var sMap sync.Map //sync.Map 不能使用 make 创建。
 
@@ -771,7 +806,6 @@ func trySyncMap() {
 内部实现为双链表
 
 ```go
-
 func tryList() {
 	var myList list.List
 
@@ -894,7 +928,6 @@ obj01 := T{
 模拟构造函数：
 
 ```go
-
 //模拟构造函数
 func initCat(color, name string) *Cat {	//返回指针
 	return &Cat{
@@ -927,7 +960,6 @@ func (接收器变量 接收器类型) 方法名(参数列表) (返回参数) {
 - 方法名、参数列表、返回参数：格式与函数定义一致。
 
 ```go
-
 1) 指针型接收器：
 指针类型的接收器由一个结构体的指针组成，更接近于面向对象中的 this 或者 self。
 
@@ -953,7 +985,6 @@ func testReceiver() {
 当方法作用于非指针接收器时，Go语言会在代码运行时将接收器的值复制一份，在非指针接收器的方法中可以获取接收器的成员值，但修改后无效。
 
 ```go
-
 // 定义点结构
 type Point struct {
     X int
@@ -974,7 +1005,6 @@ func (p Point) Add(other Point) Point {
 结构体可以包含一个或多个匿名（或内嵌）字段，即这些字段没有显式的名字，只有字段的类型是必须的，此时类型也就是字段的名字。
 
 ```go
-
 type A struct {
 	ax, ay int
 }
@@ -1303,7 +1333,6 @@ type 接口类型名 interface{
 ### 自定义类型排序
 
 ```go
-
 type Student struct {
 	id   int
 	name string
@@ -1532,7 +1561,6 @@ func printType(v interface{}) {
 判断接口类型
 
 ```go
-
 // 电子支付方式
 type Alipay struct {
 }
@@ -1749,45 +1777,77 @@ go run *.go
 
 ### 常用包
 
-#### sync
+#### time
 
-Go语言中 sync 包里提供了互斥锁 Mutex 和读写锁 RWMutex 用于处理并发过程中可能出现同时两个或多个协程（或线程）读或写同一个变量的情况。
+Sleep
+
+
+
+NewTimer
+
+
+
+NewTicker
+
+
+
+AfterFunc
 
 ```go
-package main
-import (
-    "fmt"
-    "sync"
-    "time"
-)
-func main() {
-    var a = 0
-    var lock sync.Mutex
-    for i := 0; i < 1000; i++ {
-        go func(idx int) {
-            lock.Lock()
-            defer lock.Unlock()
-            a += 1
-            fmt.Printf("goroutine %d, a=%d\n", idx, a)
-        }(i)
-    }
-    // 等待 1s 结束主程序
-    // 确保所有协程执行完
-    time.Sleep(time.Second)
+func recall(){
+	exit := make(chan int )
+	//回调
+	time.AfterFunc(time.Second, func(){
+		fmt.Println("one second left")
+		exit <- 0
+	})
+
+	<- exit
 }
 ```
 
-
-
-读写锁
-
-
+Now
 
 ```go
-读写锁有如下四个方法：
-写操作的锁定和解锁分别是func (*RWMutex) Lock和func (*RWMutex) Unlock；
-读操作的锁定和解锁分别是func (*RWMutex) Rlock和func (*RWMutex) RUnlock。
+now := time.Now() //获取当前时间
+fmt.Printf("current time:%v\n", now)
+year := now.Year()     //年
+month := now.Month()   //月
+day := now.Day()       //日
+hour := now.Hour()     //小时
+minute := now.Minute() //分钟
+second := now.Second() //秒
+fmt.Printf("%d-%02d-%02d %02d:%02d:%02d\n", year, month, day, hour, minute, second)
 ```
+
+- 时间戳
+
+```go
+now := time.Now()            //获取当前时间
+timestamp1 := now.Unix()     //时间戳
+timestamp2 := now.UnixNano() //纳秒时间戳
+fmt.Printf("现在的时间戳：%v\n", timestamp1)
+fmt.Printf("现在的纳秒时间戳：%v\n", timestamp2)
+```
+
+- 星期
+
+```go
+ t := time.Now()
+ fmt.Println(t.Weekday().String())
+```
+
+
+
+After
+
+
+
+Since
+
+
+
+#### os
 
 
 
@@ -1969,6 +2029,51 @@ func incCounter(id int) {
 }
 ```
 
+#### 读写互斥锁
+
+```go
+读写锁有如下四个方法：
+写操作的锁定和解锁分别是func (*RWMutex) Lock和func (*RWMutex) Unlock；
+读操作的锁定和解锁分别是func (*RWMutex) Rlock和func (*RWMutex) RUnlock。
+```
+
+
+
+#### WorkGroup
+
+对于一个可寻址的 sync.WaitGroup 值 wg：
+
+- 我们可以使用方法调用 wg.Add(delta) 来改变值 wg 维护的计数。
+- 方法调用 wg.Done() 和 wg.Add(-1) 是完全等价的。
+- 如果一个 wg.Add(delta) 或者 wg.Done() 调用将 wg 维护的计数更改成一个负数，一个恐慌将产生。
+- 当一个协程调用了 wg.Wait() 时，
+  - 如果此时 wg 维护的计数为零，则此 wg.Wait() 此操作为一个空操作（noop）；
+  - 否则（计数为一个正整数），此协程将进入阻塞状态。当以后其它某个协程将此计数更改至 0 时（一般通过调用 wg.Done()），此协程将重新进入运行状态（即 wg.Wait() 将返回）。
+
+
+
+```go
+func testWaitGroup(){
+	var wg sync.WaitGroup
+	wg.Add(5)
+	for i:=0;i<5;i++{
+		go func(a int ){
+			defer wg.Done()
+			fmt.Println(a)
+		}(i)
+	}
+	wg.Wait()
+}
+```
+
+#### NewCond
+
+```go
+pass
+```
+
+
+
 
 
 ### channel
@@ -2027,6 +2132,8 @@ for data := range ch {
 //遍历的结果就是接收到的数据
 
 ```
+
+*对已经关闭的管道发送数据会引发panic；对已经关闭的**带缓冲管道**接受数据不会阻塞
 
 
 
@@ -2103,7 +2210,7 @@ func main() {
 }
 ```
 
-与 switch 语句相比，select 有比较多的限制，其中最大的一条限制就是每个 case 语句里必须是一个 IO 操作。
+与 switch 语句相比，select 有比较多的限制，其中最大的一条限制就是每个 case 语句里**必须是一个 IO 操作**。
 
 在一个 select 语句中，Go语言会按顺序从头至尾评估每一个发送和接收的语句。
 
@@ -2111,8 +2218,12 @@ func main() {
 
 如果没有任意一条语句可以执行（即所有的通道都被阻塞），那么有如下两种可能的情况：
 
-- 如果给出了 default 语句，那么就会执行 default 语句，同时程序的执行会从 select 语句后的语句中恢复；
-- 如果没有 default 语句，那么 select 语句将被阻塞，直到至少有一个通信可以进行下去。
+- 如果给出了 default 语句，那么就会执行 default 语句，同时程序的执行会从 select 语句后的语句中**恢复**；
+- 如果没有 default 语句，那么 select 语句将被**阻塞**，直到至少有一个通信可以进行下去。
+
+
+
+
 
 
 

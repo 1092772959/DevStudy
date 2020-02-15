@@ -469,6 +469,18 @@ Git LFS 是 Github 开发的一个 Git 的扩展，用于实现 Git 对大文件
 
 
 
+#### ~ 和 ^
+
+^符号表示某个commit父commit所在层中的第几个parent
+
+```bash
+git rebase -i HEAD~n	#rebase到HEAD的前n个commit
+
+git rebase -i HEAD~1^1	#rebase到HEAD的前1个commit的第一个parent
+```
+
+
+
 
 
 

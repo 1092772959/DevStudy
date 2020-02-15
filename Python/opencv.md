@@ -45,6 +45,20 @@ imwrite(img_path_name,img)
 
 
 
+读写图像的二进制数据：
+
+```python
+img_steam = io.BytesIO(img_bytes)
+img = np.array(Image.open(img_steam))
+
+
+encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+ret, buf = cv2.imencode('.jpg', res1_img, encode_param)
+res_bytes = Image.fromarray(np.uint8(buf)).tobytes()
+```
+
+
+
 
 
 例：

@@ -876,7 +876,7 @@ print(obj)
 import os
 os.getcwd()
 
-os.listdir(os.getcwd())
+os.listdir(os.getcwd())	
 #返回目录下的所有文件名
 ```
 
@@ -907,7 +907,7 @@ os.path.join(path1,path2,...):将path进行组合，若其中有绝对路径，�
 'D:\\pythontest\\ostest'
 >>> os.path.join('D:\\pythontest\\ostest', 'hello.py')
 'D:\\pythontest\\ostest\\hello.py'
->>> os.path.join('D:\\pythontest\\b', 'D:\\pythontest\\a')
+>>> os.path.join('D:\\pythontest\\b', 'D:\\pytwohontest\\a')
 'D:\\pythontest\\a'
 ```
 
