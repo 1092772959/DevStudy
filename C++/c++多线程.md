@@ -229,6 +229,20 @@ public:
 
 
 
+#### Sleep
+
+```c++
+#include <unistd.h>
+
+uint microsec = 8000; //8ms
+
+usleep(microsec);
+```
+
+
+
+
+
 
 
 ### Reference

@@ -196,7 +196,7 @@ git switch master #仅切换分支
 - 克隆远程仓库的某一个分支
 
 ```bash
-git clone -b (分支名) (url)
+git clone -b ${branch_name} ${url}
 ```
 
 - 查看项目的分支
@@ -210,13 +210,13 @@ git branch -vv	#包含远程库分支
 - 删除本地分支
 
 ```bash
-git branch -d <BranchName>
+git branch -d ${branch_name}
 ```
 
 - 删除远程分支
 
 ```bash
-git push origin --delete <BranchName>
+git push origin --delete ${branch_name}
 ```
 
 - 新建本地分支
@@ -228,15 +228,40 @@ git branch 本地分支名
 - 新建本地分支并切换到指定远程分支
 
 ```bash
- git checkout -b 本地分支名 origin/远程分支名
+ git checkout -b 本地分支名 origin/${branch_name}
 ```
 
 该命令可以将远程`git`仓库里的指定分支拉取到本地，这样就在本地新建了一个`dev`分支，并和指定的远程分支`release/caigou_v1.0`关联了起来。
+
+- 已有本地分支，没有远程分支，创建并关联远程分支
+
+```bash
+git push --set-upstream origin ${branch_name}
+```
+
+
 
 - 将本地分支推送到远程
 
 ```bash
 git push <远程主机名> <本地分支名>:<远程分支名>
+```
+
+#### 建立追踪关系
+
+```shell
+#手动建立追踪关系
+git branch --set-upstream-to=<远程主机名>/<远程分支名> <本地分支名>
+```
+
+```shell
+#push时建立追踪关系
+git push -u <远程主机名> <本地分支名>
+```
+
+```shell
+#新建分支时建立跟踪关系
+git checkout -b <本地分支名> <远程主机名>/<远程分支名>
 ```
 
 
@@ -246,10 +271,8 @@ git push <远程主机名> <本地分支名>:<远程分支名>
 - 从当前分支合并到指定分支
 
 ```bash
-git merge <本地分支名>
+git merge <本地分支名>		#把<本地分之名>中的代码合并到当前分支中
 ```
-
-
 
 默认在合并时使用`Fast forward`模式，这样在记录中看不到合并的信息；如果要强制禁用`Fast forward`模式，Git就会在merge时生成一个新的commit，这样，从分支历史上就可以看出分支信息，可使用`--no-ff`方式commit
 
@@ -370,7 +393,7 @@ git push --recurse-submodules=on-demand
 
 
 
-### 9. LSF
+### 9. LFS
 
 Git LFS 是 Github 开发的一个 Git 的扩展，用于实现 Git 对大文件的支持
 

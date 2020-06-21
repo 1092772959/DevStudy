@@ -166,6 +166,16 @@ print(res)
 
 
 
+### 异常
+
+```python
+traceback.print_exec()		#打印调用栈
+```
+
+
+
+
+
 
 
 ## 正则
@@ -483,6 +493,9 @@ sudo pip install virtualenvwrapper
 ```bash
 virtualenv <name> #会在当前目录线生成一个虚拟环境目录
 
+
+virtualenv -p /usr/bin/python2.7 <name> #指定python版本  
+
 source name/bin/activate
 deactivate
 ```
@@ -495,6 +508,8 @@ deactivate
 mkvirtualenv <venv_name>		#创建环境
 workon <venv_name>					#切换至该环境
 deactivate
+
+
 
 #删除
 rmvirtualenv <name>

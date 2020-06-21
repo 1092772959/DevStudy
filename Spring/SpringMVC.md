@@ -99,7 +99,97 @@ MVC全名是Model View Controller 模型视图控制器，每个部分各司其�
 
 
 
+### 接口注解
+
+#### 1. @RequestParam
+
+- get
+
+读取param参数
+
+```java
+@RequestMapping("/hello/{id}")
+    public String getDetails(
+      @PathVariable(value="id") String id,
+    @RequestParam(value="user", required=true) String param1,
+    @RequestParam(value="msg", required=false) String param2){
+.......
+}
+```
+
+
+
+- post
+
+读取application/x-www-form-urlencoded格式的表单参数
+
+```java
+   @PostMapping("/echo")
+   public Result echo(@RequestParam String message){	//若不指定value，则读取表单中同名的字段
+        System.out.println(message);
+        return ResultTool.success(1000);
+	 }
+```
+
+
+
+#### 2. @RequestBody
+
+1) 该注解用于读取Request请求的body部分数据，使用系统默认配置的HttpMessageConverter进行解析，然后把相应的数据绑定到要返回的对象上；
+2) 再把HttpMessageConverter返回的对象数据绑定到 controller中方法的参数上。
+
+
+
+一般用于读取request body中的json, xml格式数据
+
+
+
+使用时机：
+
+- application/x-www-form-urlencoded: 可选
+- multipart/form-data: 不能处理
+- 其他格式(application/json, application/xml): 必须使用
 
 
 
 
+
+#### 3.@PathVariable
+
+这个注解能够识别URL里面的一个模板
+
+例如：
+
+```url
+http://localhost:8080/api/echo/101?user=10&msg=20
+```
+
+可以这么写：
+
+```java
+@RequestMapping("/hello/{id}")
+    public String getDetails(
+      @PathVariable(value="id") String id,
+    @RequestParam(value="user", required=true) String param1,
+    @RequestParam(value="msg", required=false) String param2){
+.......
+}
+```
+
+
+
+
+
+#### 4. 非空校验
+
+##### @NotNull
+
+对象
+
+##### @NotEmpty
+
+List
+
+##### @NotBlank
+
+String

@@ -367,7 +367,7 @@ def PythonSysPath( **kwargs ):
 查找字符串
 
 ```bash
-/{words}
+/${words}
 ```
 
 替换
@@ -574,7 +574,7 @@ Vi中的光标键是h, j, k, l，要在各个屏间切换，只需要先按一�
 
 
 
-回到上一个缓冲区：`ctrl + o`
+**回到上一个缓冲区：`ctrl + o`**
 
 
 

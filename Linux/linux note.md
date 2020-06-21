@@ -16,7 +16,7 @@ mkdir -p ~/.ssh *//-p选项表示遇到不存在的目录自动创建*
 - 将本地创建的ssh公钥放到服务器上
 
 ```bash
-scp ~/.ssh/id_rsa.pub lixiuwen.xwl@10.227.9.11:~/.ssh/
+scp ~/.ssh/id_rsa.pub lixiuwen.xwl@10.227.9.11:~/.ssh/	
 
 ```
 
@@ -465,6 +465,22 @@ grep [选项] 模式 文件名
 | -n   | 在每一行的最前面列出行号。                                 |
 | -v   | 列出没有匹配模式的行。                                     |
 | -w   | 把表达式当做一个完整的单字符来搜寻，忽略那些部分匹配的行。 |
+
+
+
+#### sed
+
+syntax
+
+```shell
+sed OPTIONS... [SCRIPT] [INPUTFILE...] 
+```
+
+examples: (ref https://www.geeksforgeeks.org/sed-command-in-linux-unix-with-examples/)
+
+
+
+
 
 
 

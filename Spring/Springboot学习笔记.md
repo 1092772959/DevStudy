@@ -1,4 +1,4 @@
-## 基础部分
+## 	基础部分
 
 ### 全局异常处理器
 
@@ -661,7 +661,7 @@ topic 交换器通过模式匹配分配消息的路由键属 性，将路由键�
 
 
 
-#### 2. 自动配置
+##### 自动配置
 
 1. RabbitAutoConfiguration
 2. 有自动配置了连接工厂ConnnectionFactory
@@ -671,7 +671,7 @@ topic 交换器通过模式匹配分配消息的路由键属 性，将路由键�
 
 管理界面端口：15672
 
-#### 3. 简单步骤
+##### 简单步骤
 
 1、pom.xml
 
@@ -796,7 +796,7 @@ public class MessageService {
 }
 ```
 
-#### 4. AmqpAdmin组件
+##### AmqpAdmin组件
 
 若需要在程序中创建和删除交换器、绑定规则、消息队列等，可以使用它。
 
@@ -819,6 +819,121 @@ public class MessageService {
 ```
 
 
+
+#### 2. RocketMQ
+
+##### 配置
+
+```xml
+        <!--rocket mq-->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client</artifactId>
+            <version>4.6.0</version>
+        </dependency>
+```
+
+
+
+```java
+@Component
+public class RocketMQConfig {
+    private boolean isEnable = false;
+    private String namesrvAddr = "localhost:9876";
+    private String groupName = "default";
+    private String topic = "shu_icpc";
+    private int producerMaxMessageSize = 1024;
+    private int producerSendMsgTimeout = 2000;
+    private int producerRetryTimesWhenSendFailed = 2;
+    private int consumerConsumeThreadMin = 5;
+    private int consumerConsumeThreadMax = 30;
+    private int consumerConsumeMessageBatchMaxSize = 1;
+    private long consumeTimeout = 20 * 1000L;
+}
+```
+
+##### 生产者
+
+```java
+public class MailConsumer {
+
+    private DefaultMQPushConsumer consumer;
+
+    @Resource
+    private RocketMQConfig config;
+
+    public MailConsumer(){}
+
+    public void start(){
+        consumer = new DefaultMQPushConsumer();
+        consumer.setNamesrvAddr(config.getNamesrvAddr());
+        consumer.setConsumerGroup(config.getGroupName());
+        consumer.setConsumeTimeout(config.getConsumeTimeout());
+        consumer.setConsumeMessageBatchMaxSize(config.getConsumerConsumeMessageBatchMaxSize());
+        try {
+            consumer.subscribe(config.getTopic(), "*");
+        } catch (MQClientException e) {
+            e.printStackTrace();
+        }
+
+        consumer.registerMessageListener((MessageListenerConcurrently) (msgs, context) -> {
+            // msgs中只收集同一个topic，同一个tag，并且key相同的message
+            // 会把不同的消息分别放置到不同的队列中
+            try {
+                for (Message msg : msgs) {
+                    //消费者获取消息 这里只输出 不做后面逻辑处理
+                    String body = new String(msg.getBody(), "utf-8");
+                    System.out.println(body);
+                }
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+                return ConsumeConcurrentlyStatus.RECONSUME_LATER;
+            }
+            return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+        });
+
+        try {
+            consumer.start();
+        } catch (MQClientException e) {
+            //consumer run failed
+            e.printStackTrace();
+        }
+
+        //success;
+    }
+}
+
+```
+
+##### 消费者
+
+```java
+public class MailProducer {
+    private DefaultMQProducer producer;
+
+    @Resource
+    private RocketMQConfig config;
+
+    MailProducer(){
+        producer = new DefaultMQProducer(config.getGroupName());
+        producer.setNamesrvAddr(config.getNamesrvAddr());
+        producer.setSendMsgTimeout(config.getProducerSendMsgTimeout());
+        producer.setRetryTimesWhenSendFailed(config.getProducerRetryTimesWhenSendFailed());
+        try {
+            producer.start();
+        } catch (MQClientException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void _send(String str) throws InterruptedException, RemotingException, MQClientException, MQBrokerException {
+        String topic = this.config.getTopic();
+        Message msg = new Message(config.getTopic(), "mail", str.getBytes());
+        producer.send(msg);
+    }
+}
+
+```
 
 
 
@@ -995,5 +1110,24 @@ public class ShiroConfig {
 
 
 
-### Netty网络
+### Netty网络通信
+
+
+
+
+
+### 杂项
+
+1. 打包时忽略单元测试
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-surefire-plugin</artifactId>
+    <version>2.20.1</version>
+    <configuration>
+        <skipTests>true</skipTests>
+    </configuration>
+</plugin>
+```
 

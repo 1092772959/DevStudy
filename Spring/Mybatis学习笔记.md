@@ -238,6 +238,16 @@ ${value}：接收输入参数的内容，如果传入类型是简单类型，${}
 
 
 
+模糊查询：
+
+```xml
+
+```
+
+
+
+
+
 #### insert
 
 插入后返回自增主键
@@ -246,7 +256,9 @@ ${value}：接收输入参数的内容，如果传入类型是简单类型，${}
 
 mysql自增主键，执行sql提交前生成一个自增主键。
 
-通过mysql的函数LAST_INSERT_ID()可获取上一次insert生成的id值，但只适用于自增主键
+通过mysql的函数LAST_INSERT_ID()可获取上一次insert生成的id值，但只适用于自增主键。
+
+新插入条目的主键会保存在对象的对应主键字段。
 
 ```xml
 <insert id="insert" parameterType="School">
@@ -259,7 +271,7 @@ order: LAST_INSERT_ID()相对于insert语句的执行顺序
 -->
     
         <selectKey keyProperty="id" order="AFTER" resultType = "java.lang.Integer">
-            select LAST_INSERT_ID()
+            select LAST_INSERT_ID() as id
         </selectKey>
         insert into school(school_name, abbr_name, address, coach_id, chief_name, phone, bill_enterprise, postcode,
             tax_num, check_status)
