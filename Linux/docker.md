@@ -74,4 +74,3 @@ $docker history image_name
 ```
 
 
-

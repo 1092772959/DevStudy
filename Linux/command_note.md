@@ -115,6 +115,31 @@ sudo pip uninstall pip
 
 
 
+### zsh
+
+指令补全
+
+autojump zsh-autosuggestions zsh-syntax-highlighting
+
+install ref: 
+
+- https://www.zrahh.com/archives/118.html
+- https://www.zrahh.com/archives/167.html
+
+which zsh 记下路径后，sudo chsh 你的用户名，绕过
+
+
+
+#### 代码搜索
+
+Ack
+
+install https://www.cnblogs.com/fnlingnzb-learner/p/9585219.html
+
+
+
+
+
 
 
 
@@ -468,6 +493,28 @@ grep [选项] 模式 文件名
 
 
 
+#### awk
+
+ref: https://www.ruanyifeng.com/blog/2018/11/awk.html
+
+**内置变量**
+
+`NR`: 当前处理的是第几行
+
+`NF`: 当前行有多少个字段
+
+`FILENAME`：当前文件名
+
+`FS`：字段分隔符，默认是空格和制表符
+
+`OFS`：输出**字段**的分隔符，用于打印时分隔字段，默认为空格和制表符
+
+`ORS`：输出**记录**的分隔符，用于打印时分隔记录，默认为换行符
+
+`OFMT`：数字输出的格式，默认为％.6g
+
+
+
 #### sed
 
 syntax
@@ -566,6 +613,16 @@ ls -l |grep "^d"|wc -l
 ```
 
 
+
+#### xargs
+
+为什么需要xargs？
+
+grep和cat等指令把标准输入和参数输入中的文本都进行处理，但是很多命令是不处理标准输入的，例如`kill`, `rm` 
+
+```bash
+echo '516' | kill 		#不能被执行
+```
 
 
 
