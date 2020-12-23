@@ -457,8 +457,8 @@ func quickSort(arr []int, L int, R int) {
 
 - nil没有默认类型
 - 不同类型nil的指针是一样的
-- nil 是 map、slice、pointer、channel、func、interface 的零值
-- 不同类型的nil值占用的内润大小不同
+- **nil 是 map、slice、pointer、channel、func、interface 的零值**
+- 不同类型的nil值占用的内存大小不同
 
 ```go
 func main() {
@@ -554,7 +554,7 @@ var q [3]int = [3]int{1, 2, 3}
 var r [3]int = [3]int{1, 2}
 ```
 
-在数组的定义中，如果在数组长度的位置出现“...”省略号，则表示数组的长度是根据初始化值的个数来计算
+在数组的定义中，如果在数组长度的位置出现“...”省略号，则表示数组的长度是**根据初始化值的个数**来计算
 
 ```go
 q = [...]int{1,2,3}
@@ -782,6 +782,8 @@ m1 := map[int]string{
 
 Go语言在 1.9 版本中提供了一种效率较高的并发安全的 sync.Map，sync.Map 和 map 不同，不是以语言原生形态提供，而是在 sync 包下的特殊结构。
 
+Store 表示存储，Load 表示获取，Delete 表示删除。
+
 ```go
 func trySyncMap() {
 	var sMap sync.Map //sync.Map 不能使用 make 创建。
@@ -808,6 +810,8 @@ func trySyncMap() {
 内部实现为双链表
 
 ```go
+import "container/list"
+
 func tryList() {
 	var myList list.List
 
@@ -1298,8 +1302,6 @@ type Skill struct {
         Level int    `json:"level"`
 }
 ```
-
-
 
 
 
@@ -1852,6 +1854,54 @@ Since
 #### os
 
 
+
+#### strings
+
+https://godoc.org/strings
+
+
+
+#### sort
+
+https://www.jianshu.com/p/48482b032ab4
+
+
+
+#### plugin
+
+ref: https://golang.org/pkg/plugin/
+
+1.Plguin 需要有自己的 main package
+2.编译的时候，使用 go build -buildmode=plugin file.go 来编译
+3.使用 plugin.Open(path string) 来打开.so文件，同一插件只能打开一次，重复打开会报错
+4.使用 plugin.LookUp(name string) 来获取插件中对外暴露的方法或者类型
+5.使用类型断言，断言后执行相应的方法
+
+
+
+#### container/list
+
+```go
+func (e *Element) Next() *Element  //返回该元素的下一个元素，如果没有下一个元素则返回nil
+func (e *Element) Prev() *Element//返回该元素的前一个元素，如果没有前一个元素则返回nil。
+type List
+func New() *List //返回一个初始化的list
+func (l *List) Back() *Element //获取list l的最后一个元素
+func (l *List) Front() *Element //获取list l的第一个元素
+func (l *List) Init() *List  //list l初始化或者清除list l
+func (l *List) InsertAfter(v interface{}, mark *Element) *Element  //在list l中元素mark之后插入一个值为v的元素，并返回该元素，如果mark不是list中元素，则list不改变。
+func (l *List) InsertBefore(v interface{}, mark *Element) *Element//在list l中元素mark之前插入一个值为v的元素，并返回该元素，如果mark不是list中元素，则list不改变。
+func (l *List) Len() int //获取list l的长度
+func (l *List) MoveAfter(e, mark *Element)  //将元素e移动到元素mark之后，如果元素e或者mark不属于list l，或者e==mark，则list l不改变。
+func (l *List) MoveBefore(e, mark *Element)//将元素e移动到元素mark之前，如果元素e或者mark不属于list l，或者e==mark，则list l不改变。
+func (l *List) MoveToBack(e *Element)//将元素e移动到list l的末尾，如果e不属于list l，则list不改变。
+func (l *List) MoveToFront(e *Element)//将元素e移动到list l的首部，如果e不属于list l，则list不改变。
+func (l *List) PushBack(v interface{}) *Element//在list l的末尾插入值为v的元素，并返回该元素。
+func (l *List) PushBackList(other *List)//在list l的尾部插入另外一个list，其中l和other可以相等。
+func (l *List) PushFront(v interface{}) *Element//在list l的首部插入值为v的元素，并返回该元素。
+func (l *List) PushFrontList(other *List)//在list l的首部插入另外一个list，其中l和other可以相等。
+func (l *List) Remove(e *Element) interface{}//如果元素e属于list l，将其从list中删除，并返回元素e的值。
+```
 
 
 

@@ -1,4 +1,4 @@
-### 创建方法
+### thread
 
 ```cpp
 #include<iostream>
@@ -105,7 +105,7 @@ void shared_print(std::string &msg, int id){
     mu.unlock();
 }
 
-void func(){    
+void func(){
     std::string str = "thread";
     for( int i=0;i>-100;--i){   
         shared_print(str , i );
@@ -130,11 +130,13 @@ int main(){
 
 #### lock_guard
 
-lock_guard 对象通常用于管理某个锁(Lock)对象。在某个 lock_guard 对象的声明周期内，它所管理的锁对象会一直保持上锁状态；而 lock_guard 的生命周期结束之后，它所管理的锁对象会被解锁(注：类似 shared_ptr 等智能指针管理动态分配的内存资源 )。
+in`mutex` header file
+
+lock_guard 对象通常用于管理某个锁(Lock)对象。在一个 lock_guard 对象的**声明周期**内，它所管理的锁对象会一直保持上锁状态；而 lock_guard 的生命周期结束之后，它所管理的锁对象会被解锁(注：类似 shared_ptr 等智能指针管理动态分配的内存资源 )。
 
 
 
-模板参数 Mutex 代表互斥量类型，例如 std::mutex 类型，它应该是一个基本的 BasicLockable 类型，标准库中定义几种基本的 BasicLockable 类型，分别 std::mutex, std::recursive_mutex, std::timed_mutex，std::recursive_timed_mutex (以上四种类型均已在上一篇博客中介绍)以及 std::unique_lock(本文后续会介绍 std::unique_lock)。(注：BasicLockable 类型的对象只需满足两种操作，lock 和 unlock，另外还有 Lockable 类型，在 BasicLockable 类型的基础上新增了 try_lock 操作，因此一个满足 Lockable 的对象应支持三种操作：lock，unlock 和 try_lock；最后还有一种 TimedLockable 对象，在 Lockable 类型的基础上又新增了 try_lock_for 和 try_lock_until 两种操作，因此一个满足 TimedLockable 的对象应支持五种操作：lock, unlock, try_lock, try_lock_for, try_lock_until)。
+模板参数 Mutex 代表互斥量类型，例如 std::mutex 类型，它应该是一个基本的 BasicLockable 类型，标准库中定义几种基本的 BasicLockable 类型，分别 std::mutex, std::recursive_mutex, std::timed_mutex，std::recursive_timed_mutex 以及 std::unique_lock。(BasicLockable 类型的对象只需满足两种操作，lock 和 unlock，另外还有 Lockable 类型，在 BasicLockable 类型的基础上新增了 try_lock 操作，因此一个满足 Lockable 的对象应支持三种操作：lock，unlock 和 try_lock；最后还有一种 TimedLockable 对象，在 Lockable 类型的基础上又新增了 try_lock_for 和 try_lock_until 两种操作，因此一个满足 TimedLockable 的对象应支持五种操作：lock, unlock, try_lock, try_lock_for, try_lock_until)。
 
 
 
@@ -148,6 +150,50 @@ void shared_print(std::string &msg, int id){
 ```
 
 此时cout仍未在guard对象保护下，其他地方仍可以使用cout.
+
+
+
+#### unique_lock
+
+```c++
+void inMsgRecvQueue(){
+		for (int i = 0; i < 10000; i++){
+			std::unique_lock<std::mutex> sbguard(my_mutex, std::defer_lock);//没有加锁的my_mutex
+			
+			if (sbguard.try_lock() == true)//返回true表示拿到锁了{
+				msgRecvQueue.push_back(i);
+				//...
+				//其他处理代码
+			}
+			else{
+				//没拿到锁
+				cout << "inMsgRecvQueue()执行，但没拿到锁头，只能干点别的事" << i << endl;
+      }
+		}
+	}
+
+```
+
+
+
+difference with lock_guard
+
+- `unique_lock`和`lock_guard`都不能复制，`lock_guard`不能移动，但是`unique_lock`可以
+- lock_guard只能保证在析构时执行解锁，本身没有提供加锁解锁功能，而是在自己的生命周期内对锁资源保持占有；而unique_lock需手动调用lock/unlock，因此可以实现比lock_guard更为细粒度的锁
+- unique_lock提供 try_to_lock, adopt_lock, defer_lock等选项
+
+##### std::lock
+
+
+
+```c++
+    // don't actually take the locks yet
+    std::unique_lock<std::mutex> lock1(_mu);
+    std::unique_lock<std::mutex> lock2(_mu);
+ 
+    // lock both unique_locks without deadlock
+    std::lock(lock1, lock2);
+```
 
 
 

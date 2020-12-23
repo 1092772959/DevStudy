@@ -703,6 +703,14 @@ ps [选项]
 
 
 
+##### 按使用内存排序
+
+```shell
+ps aux --sort -rss
+```
+
+
+
 #### top
 
 交互式地查看进程运行情况
@@ -820,6 +828,28 @@ hostaddr：ip地址
 service：/etc/service中服务名，可写多个
 port：端口号，可写多个
 ```
+
+#### netstat
+
+
+
+examples:
+
+- 查看tcp建立连接数
+
+```shell
+netstat -na|grep ESTABLISHED|wc -l
+```
+
+- 查看tcp各状态的连接数
+
+```shell
+netstat -n | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'
+```
+
+
+
+#### tcpdump
 
 
 

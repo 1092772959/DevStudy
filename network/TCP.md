@@ -6,7 +6,7 @@
 
 
 
-##### 区别
+##### 与TCP区别
 
 1. UDP无连接；TCP面相连接
 2. UDP尽最大努力交付；TCP提供可靠交付
@@ -60,6 +60,24 @@
 
 
 
+##### 分片大小
+
+- tcp分组
+
+tcp是可靠传输协议，通过超时与重传机制，来保证收到的数据是完整的。因为tcp是可靠
+传输协议，如果要传输的数据大于 1480 - 20(tcp头部) =1460Byte时，在ip层被分片，而
+ip层分片会导致，如果其中的某一个分片丢失，因为tcp层不知道哪个ip数据片丢失，所以
+就需要重传整个数据段，这样就造成了很大空间和时间资源的浪费，为了解决这个问题，
+就有了**tcp分组和MSS（最长报文大小）概念，利用tcp三次握手建立链接的过程，交互各自的**
+**MTU，然后用小的那个MTU-20-20 , 得到MSS，这样就避免在ip层被分片。**
+
+
+
+- udp：由于udp是不可靠传输的，所以ip分片主要是为了upd服务的，所以就有了网上的
+  1500 - 20(ip头部) - 8(udp头部) > 1472 的说法，把1472作为ip分片的标准
+
+
+
 #### TCP连接
 
 ![img](https://ss0.baidu.com/6ONWsjip0QIZ8tyhnq/it/u=2590032753,2466318043&fm=173&app=49&f=JPEG?w=640&h=716&s=E7F239D247AFCCEA106594580300D072)
@@ -104,7 +122,7 @@ netstat -n |grep TIME_WAIT
 net.ipv4.tcp_syncookies = 1 表示开启SYN Cookies。当出现SYN等待队列溢出时，启用cookies来处理，可防范少量SYN攻击，默认为0，表示关闭；
 net.ipv4.tcp_tw_reuse = 1 表示开启重用。允许将TIME-WAIT sockets重新用于新的TCP连接，默认为0，表示关闭；
 net.ipv4.tcp_tw_recycle = 1 表示开启TCP连接中TIME-WAIT sockets的快速回收，默认为0，表示关闭。
-net.ipv4.tcp_fin_timeout 修改系默认的 TIMEOUT 时间
+net.ipv4.tcp_fin_timeout 修改系默认的 TIMEOUT 时间 
 ```
 
 然后执行 /sbin/sysctl -p 让参数生效。
@@ -214,6 +232,45 @@ P3 - P2 = 允许发送但当前尚未发送的字节数（**可用窗口**）
 
 
 
+#### 服务端问题
+
+##### 大量close_wait
+
+大量请求而导致的超时，客户端在发送FIN之后，没有继续发送TIME_WAIT
+
+##### 大量time_wait
+
+服务器调用大量下游接口。内核参数没做优化
+
+```shell
+# edit /etc/sysctl.conf
+
+#对于一个新建连接，内核要发送多少个 SYN 连接请求才决定放弃,不应该大于255，默认值是5，对应于180秒左右时间  
+net.ipv4.tcp_syn_retries=2 
+#net.ipv4.tcp_synack_retries=2 
+#表示当keepalive起用的时候，TCP发送keepalive消息的频度。缺省是2小时，改为300秒 
+net.ipv4.tcp_keepalive_time=1200 
+net.ipv4.tcp_orphan_retries=3 
+#表示如果套接字由本端要求关闭，这个参数决定了它保持在FIN-WAIT-2状态的时间 
+net.ipv4.tcp_fin_timeout=30   
+#表示SYN队列的长度，默认为1024，加大队列长度为8192，可以容纳更多等待连接的网络连接数。 
+net.ipv4.tcp_max_syn_backlog = 4096 
+#表示开启SYN Cookies。当出现SYN等待队列溢出时，启用cookies来处理，可防范少量SYN攻击，默认为0，表示关闭 
+net.ipv4.tcp_syncookies = 1 
+   
+#表示开启重用。允许将TIME-WAIT sockets重新用于新的TCP连接，默认为0，表示关闭 
+net.ipv4.tcp_tw_reuse = 1 
+#表示开启TCP连接中TIME-WAIT sockets的快速回收，默认为0，表示关闭 
+net.ipv4.tcp_tw_recycle = 1 
+   
+##减少超时前的探测次数  
+net.ipv4.tcp_keepalive_probes=5  
+##优化网络设备接收队列  
+net.core.netdev_max_backlog=3000 
+```
+
+
+
 #### 流量控制
 
 流量控制（flow control）让发送方的发送速率不要太快，要让接收方来得及接收。利用滑动窗口机制可以方便地在TCP连接上实现对发送方的流量控制。窗口的单位是**字节**，不是报文段。
@@ -256,7 +313,7 @@ TCP/IP协议中，无论发送多少数据，总是要在数据前面加上协�
 
 #### 拥塞控制
 
-网络的资源：计算机网络中国呢的链路容量（带宽）、交换结点中的缓存和处理机。
+网络的资源：计算机网络中的链路容量（带宽）、交换结点中的缓存和处理机。
 
 对网络中某一资源的需求超过了该资源所能提供的可用部分，网络性能就会变差，称为**拥塞**。
 
@@ -320,9 +377,27 @@ ssthreash：慢开始门限
 ping -l $SIZE		#单位为字节
 ```
 
+基于ICMP协议，属于网际层。
+
+
+
+- 返回结果：
+
+```
+"Request Timed Out"这个信息表示对方主机可以到达到 TIME OUT，这种情况通常是为 对方拒绝接收你发给它的数据包造成数据包丢失。 大多数的原因可能是对方装有防火墙或已 下线。
+
+"Destination Net Unreachable"这个信息表示对方主机不存在或者没有跟对方建立连接。 这里要说明一下"destination host unreachable"和"time out"的区别，如果所经过的路由器的 路由表中具有到达目标的路由，而目标因为其它原因不可到达，这时候会出现"time out"， 如果路由表中连到达目标的路由都没有，那就会出现"destination host unreachable"。
+
+"Bad IP address" 这个信息表示你可能没有连接到 DNS 服务器所以无法解析这个 IP 地 址，也可能是 IP 地址不存在。
+
+"Source quench received"信息比较特殊，它出现的机率很少。它表示对方或中途的服务 器繁忙无法回应。
+```
+
 
 
 ##### traceroute
+
+同样也是基于ICMP。利用IP数据报的TTL字段，指定数据包最多能经过几次路由。每经过一个路由器就会对TTL减1，当为0时，不做转发。
 
 
 

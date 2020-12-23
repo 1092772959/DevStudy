@@ -103,7 +103,7 @@ java io相关：https://my.oschina.net/u/3471412/blog/2966696
 他们经历的两个阶段是：
 
 1. 等待数据准备
-2. 讲数据从内核拷贝到用户进程中
+2. 讲数据从内核拷贝到用户进程中（写操作则是数据从用户进程到内核）
 
 之所以会有同步、异步、阻塞和非阻塞这几种说法就是根据程序在这两个阶段的处理方式不同而产生的。
 
@@ -137,7 +137,7 @@ I/O多路复用(multiplexing)是网络编程中最常用的模型，像我们最
 
 ![img](https://upload-images.jianshu.io/upload_images/11224747-dcc024f7fa2e8460.gif)
 
-看起来它与blocking I/O很相似，两个阶段都阻塞。但它与blocking I/O的一个重要区别就是它可以等待多个数据报就绪（datagram ready），即可以处理多个连接。这里的select相当于一个“代理”，调用select以后进程会被select阻塞，这时候在内核空间内select会监听指定的多个datagram (如socket连接)，如果其中任意一个数据就绪了就返回。此时程序再进行数据读取操作，将数据拷贝至当前进程内。由于select可以监听多个socket，我们可以用它来处理多个连接。
+看起来它与`blocking I/O`很相似，两个阶段都阻塞。但它与blocking I/O的一个重要区别就是它可以等待**多个数据报就绪**（datagram ready），即可以处理多个连接。这里的select相当于一个“代理”，调用select以后进程会被select阻塞，这时候在内核空间内select会监听指定的多个datagram (如socket连接)，如果其中任意一个数据就绪了就返回。此时程序再进行数据读取操作，将数据拷贝至当前进程内。由于select可以监听多个socket，我们可以用它来处理多个连接。
 
 在select模型中每个socket一般都设置成non-blocking，虽然等待数据阶段仍然是阻塞状态，但是它是被select调用阻塞的，而不是直接被I/O阻塞的。select底层通过轮询机制来判断每个socket读写是否就绪。
 
@@ -179,17 +179,33 @@ select过程如下：
 
 ![img](https://images2018.cnblogs.com/blog/137084/201806/137084-20180611142415772-1018872947.png)
 
+select线程不安全
+
+
+
 2. poll
 
 poll没有最大文件描述符数量的限制。使用链表存储fd信息。本质和select没区别。
 
-poll还有一个特点是“水平触发”，如果报告了fd后，没有被处理，那么下次poll时会再次报告该fd。
+poll还有一个特点是“`水平触发`”，如果报告了fd后，没有被处理，那么下次poll时会再次报告该fd。
 
 
 
 3. epoll
 
 epoll没有描述符个数限制，使用一个文件描述符管理多个描述符，将用户关心的文件描述符的事件存放到内核的一个事件表中，这样在用户空间和内核空间的copy只需一次。
+
+>ref:https://zhuanlan.zhihu.com/p/39970630
+>
+>1. 调用epoll_create()在内核中建立一个epoll对象，
+>2. 调用epoll_ctl()向epoll对象中添加连接的套接字
+>3. 调用epoll_wait()收集发生的事件的连接
+>
+>
+>
+>epoll比select/poll的优越之处：因为后者每次调用时都要传递你所要监控的所有socket给select/poll系统调用，这意味着需要将用户态的socket列表copy到内核态，如果以万计的句柄会导致每次都要copy几十几百KB的内存到内核态，非常低效。而我们调用epoll_wait时就相当于以往调用select/poll，但是这时却不用传递socket句柄给内核，因为内核已经在epoll_ctl中拿到了要监控的句柄列表。
+
+
 
 获取事件的时候，它无须遍历整个被侦听的描述符集，只要遍历那些被内核IO事件异步唤醒而加入Ready队列的描述符集合就行了。
 
@@ -215,7 +231,21 @@ ET模式很大程度上减少了epoll事件的触发次数，因此效率比LT�
 
 
 
-### Load Avg
+#### Reactor
+
+https://segmentfault.com/a/1190000018331509
+
+
+
+#### Proactor
+
+
+
+
+
+### Command
+
+#### Load Avg
 
 三个值表示系统在过去1分钟、5分钟、15分钟内运行进程队列中（运行中进程和可运行进程）的平均数量。
 运行队列里包含没有等待IO，没有WAIT，没有KILL的进程。
@@ -243,4 +273,20 @@ load averages: 2.67 2.41 2.32
 - CPU利用率低不代表，代表CPU符合低，并且CPU资源不是性能瓶颈
 
 
+
+
+
+### Critical Directory
+
+#### /var
+
+>/var/cache：应用程序本身运行过程中会产生生的一些暂存文件。
+>
+>/var/lib:程序本身执行的过程中需要使用到的数据文件放置的目录。再次目录下各自的软件应该要有各自的目录。举例来说，Mysql的数据库放置到/var/lib/mysql，而rpm的数据库则放到/var/lib/rpm目录下。
+>
+>/var/lock:某些设备或者是文件资源一次只能被一个应用程序所使用 ，如当系统中有一个刻录机两个人都要使用，那么需要在一个人使用的时候上锁，那么第一个人使用完毕后，第二个人才可以继续使用。
+>
+>/var/log:这个是登录文件放置日志的的目录。里面比较重要的文件/var/log/messages，/var/log/harry(记录登陆者信息)等。
+>
+>/var/run/：某些程序启动服务后，会将他们PID放置在这个目录下。
 
