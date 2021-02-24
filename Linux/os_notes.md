@@ -70,6 +70,38 @@ tips：
 
 2：mutex（互斥量）也是一种二元的锁机制，只有是（1）和否（0）的两个值，和二元信号量比较相似。但是它和二元信号量不同的是，占有和释放必须是同一个线程。比如互斥量M被线程A占有，那么释放的时候肯定也是A线程释放的。二元信号量则不必如此，一个二元信号量的占有和释放可以是不同线程。相应的内容也可以移步看一下wiki解释--Synchronization 。mutex是可以用于进程也可以用于线程的同步机制。
 
+### 中断
+
+#### Hardware/Software Interrupt
+
+1. Hardware interrupts are issued by hardware devices like disk, network cards, keyboards, clocks, etc. Each device or set of devices will have its own IRQ (Interrupt ReQuest) line. Based on the IRQ the CPU will dispatch the request to the appropriate hardware driver. (Hardware drivers are usually subroutines within the kernel rather than a separate process.)
+
+2. The driver which handles the interrupt is run on the CPU. The CPU is interrupted from what it was doing to handle the interrupt, so nothing additional is required to get the CPU's attention. In multiprocessor systems, an interrupt will usually only interrupt one of the CPUs. (As a special cases mainframes have hardware channels which can deal with multiple interrupts without support from the main CPU.)
+
+3. The hardware interrupt interrupts the CPU directly. This will cause the relevant code in the kernel process to be triggered. For processes that take some time to process, the interrupt code may allow itself to be interrupted by other hardware interrupts.
+
+   In the case of timer interrupt, the kernel scheduler code may suspend the process that was running and allow another process to run. It is the presence of the scheduler code which enables multitasking.
+
+
+
+1. Typically software interrupts are requests for I/O (Input or Output). These will call kernel routines which will schedule the I/O to occur. For some devices the I/O will be done immediately, but disk I/O is usually queued and done at a later time. Depending on the I/O being done, the process may be suspended until the I/O completes, causing the kernel scheduler to select another process to run. I/O may occur between processes and the processing is usually scheduled in the same manner as disk I/O.
+
+2. The software interrupt only talks to the kernel. It is the responsibility of the kernel to schedule any other processes which need to run. This could be another process at the end of a pipe. Some kernels permit some parts of a device driver to exist in user space, and the kernel will schedule this process to run when needed.
+
+   It is correct that a software interrupt doesn't directly interrupt the CPU. Only code that is currently running code can generate a software interrupt. The interrupt is a request for the kernel to do something (usually I/O) for running process. A special software interrupt is a Yield call, which requests the kernel scheduler to check to see if some other process can run.
+
+
+
+ **for software interrupt: software program -> device driver routine within the kernel process; for hardware interrupt: hardware -> CPU -> device driver routine within the kernel process?**
+
+
+
+1. For I/O requests, the kernel delegates the work to the appropriate kernel driver. The routine may queue the I/O for later processing (common for disk I/O), or execute it immediately if possible. The queue is handled by the driver, often when responding to hardware interrupts. When one I/O completes, the next item in the queue is sent to the device.
+
+2. Yes, software interrupts avoid the hardware signalling step. The process generating the software request must be a currently running process, so they don't interrupt the CPU. However, they do interrupt the flow of the calling code.
+
+   If hardware needs to get the CPU to do something, it causes the CPU to interrupt its attention to the code it is running. The CPU will push its current state on a stack so that it can later return to what it was doing. The interrupt could stop: a running program; the kernel code handling another interrupt; or the idle process.
+
 
 
 ### IO
