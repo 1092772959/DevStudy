@@ -310,3 +310,16 @@ export default {
 
 
 
+### 三、概念
+
+#### 生命周期
+
+- beforeCreat
+- created
+- BeforeMount
+- Mounted
+- beforeUpdate
+- updated
+- beforeDestroy
+- destroy
+

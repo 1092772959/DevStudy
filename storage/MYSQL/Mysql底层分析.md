@@ -555,9 +555,7 @@ repeatable read 实现:
 
 上述实现方式就是多版本并发控制(MVCC)，是在read commited和repeatable read两种隔离级别过程中记录并使用版本链的这种方式。两种并发级别实现上的不同在于生成readview的时机不同。read commited在每次进行普通select操作前都会生成一个readview，而repeatable view只在第一次普通select前生成readview，之后查询使用它即可。
 
-
-
-
+Good notes: https://www.jianshu.com/p/8845ddca3b23
 
 #### 锁
 
@@ -745,7 +743,7 @@ update ...;
 >**注意:** 
 >
 >1. 如果在使用like操作符时,后面的没有使用通用匹配符效果是和=一致的,SELECT * FROM products WHERE products.prod_name like '1000';
->   只能匹配的结果为1000,而不能匹配像JetPack 1000这样的结果.
+>     只能匹配的结果为1000,而不能匹配像JetPack 1000这样的结果.
 >2. 注意NULL,%通配符可以匹配任意字符,但是不能匹配NULL,也就是说SELECT * FROM products WHERE products.prod_name like '%;是匹配不到products.prod_name为NULL的的记录.
 
 

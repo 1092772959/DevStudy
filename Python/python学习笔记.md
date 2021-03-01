@@ -484,6 +484,13 @@ import re
 sudo pip install virtualenv
 
 sudo pip install virtualenvwrapper
+
+vim ~/.bash_profile
+export WORKON_HOME=$HOME/.virtualenvs
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3 #指定python解释
+source /usr/local/bin/virtualenvwrapper.sh
+#保存退出
+source ~/.bash_profile
 ```
 
 - 创建虚拟环境
@@ -509,7 +516,7 @@ mkvirtualenv <venv_name>		#创建环境
 workon <venv_name>					#切换至该环境
 deactivate
 
-
+mkvirtualenv -p python3.6 envname #指定版本
 
 #删除
 rmvirtualenv <name>
