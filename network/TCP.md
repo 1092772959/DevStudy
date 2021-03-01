@@ -1,3 +1,7 @@
+MTU：以太网帧传输最大单元，1500字节。
+
+
+
 #### UDP
 
 用户数据报协议
@@ -26,6 +30,14 @@
 | 远程终端接入 | TELNET     | TCP        |
 | 万维网       | HTTP       | TCP        |
 | 文件传送     | TFP        | TCP        |
+
+### TCP
+
+#### 发送过程
+
+TCP协议为通信双方维持一个连接，并且在内核中存储相关数据。这部分数据中的TCP头部信息和TCP内核缓冲区（发送和接收）一起构成了TCP报文段。当发送端应用程序使用send（或write）函数向一个TCP连接写入数据时，内核中的TCP模块首先把这些数据复制到与该连接对应的TCP内核发送缓冲区。然后tcp模块调用ip模块提供的服务，传递参数包括tcp头部信息和TCP发送缓冲区中的数据。
+
+<img src="/Users/lixiuwen01/Library/Application Support/typora-user-images/image-20210220151102040.png" alt="image-20210220151102040" style="zoom:50%;" />
 
 
 
@@ -401,3 +413,21 @@ ping -l $SIZE		#单位为字节
 
 
 
+#### ARP协议
+
+主机向自己所在的网络广播一个ARP请求，该请求包含目标机器的网络地址。此网络上的其他机器都将收到这个请求，但只有被请求的目标机器会回应一个ARP请求，其中包含自己的物理地址。
+
+<img src="/Users/lixiuwen01/Library/Application Support/typora-user-images/image-20210220154516231.png" alt="image-20210220154516231" style="zoom:50%;" />
+
+### socket
+
+一组提供访问tcp/ip协议栈的系统调用。
+
+提供功能：
+
+1. 将应用程序数据从用户缓冲区复制到TCP/UDP内核发送缓冲区。
+2. 修改内核中各层协议的某些头部信息，比如设置IP数据报在网络上的存活时间。
+
+##### api
+
+https://www.cnblogs.com/cy568searchx/p/4211124.html

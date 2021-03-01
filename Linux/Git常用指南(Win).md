@@ -167,6 +167,17 @@ git push -u origin master		#第一次上传
 git push origin master			#仓库不为空
 ```
 
+如果提交到远程服务器，但之后想要进一步code review再合入，则使用：
+
+```shell
+git push origin HEAD:refs/for/master
+
+# 不需要cr
+git push origin HEAD:refs/heads
+```
+
+
+
 #### 下拉
 
 `git pull` 命令基本上就是 `git fetch` 和 `git merge origin/master` 命令的组合体，Git 从指定的远程仓库中抓取内容，然后马上尝试将其合并进你所在的分支中。合并可能会遇到冲突，需要手动处理。

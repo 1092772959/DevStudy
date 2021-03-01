@@ -67,7 +67,7 @@ call vundle#end()            " required
 filetype plugin indent on    " required
 " au BufNewFile,BufRead *.py
 set tabstop=4
-set softtabstop=4
+set softtabstop=4a
 set shiftwidth=4
 set textwidth=200
 set expandtab

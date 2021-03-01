@@ -1,6 +1,4 @@
-docs from MS：
-
-https://docs.microsoft.com/zh-cn/cpp/cpp/?view=vs-2019
+## Notes
 
 
 
@@ -998,4 +996,44 @@ At compile time, applications utilize **static libraries**. All the copies of th
 4. File size is much larger.
 
 
+
+静态链接以.o为单位，不管.o中包含多少符号，即便只有一个符号被用到，整个.o文件便会被链接到应用程序中。
+
+
+
+如果在编译阶段链接了静态库，链接器会将静态库中.o文件写入到应用程序中，导致最终生成的应用程序体积偏大。linux系统下常用的命令基本上全部依赖了操作系统的运行库libc，如果每个命令在编译阶段采用静态链接，则每个命令都存在一份libc的副本，不仅会造成OS文件体积大幅度增加，运行时也会占用更多的内存，造成了极大的浪费，因此OS中自带的命令默认采用动态链接libc的方式。**基于同样的考虑，GCC默认先连接动态库，如果没找到动态库才会链接静态库**。
+
+
+
+##### LD_RUN_PATH
+
+LD_RUN_PATH是RPATH对应的环境变量，用于指定程序启动时动态库的加载路径，既可以在编译阶段指定，也可以在运行阶段指定。我们推荐在编译阶段指定，可以减少服务运维的难度和成本。
+
+**编译阶段指定**
+
+设置LD_RUN_PATH会影响整个shell session的环境，在编译阶段事先指定好应用程序的rpath，仅会影响该文件的rpath，可以简化服务上线部署时的难度，又可以避免影响其他命令的正常运行。
+
+
+
+>  如果rpath未指定，会默认查找操作系统下/lib64，/usr/lib64这两个目录
+
+
+
+#### compliation command
+
+##### symbol
+
+1. ld 参数-wl,-s消除所有符号，-wl,-S 消除调试信息
+
+
+
+
+
+
+
+## Reference
+
+Beginner's guide for Linker: https://www.lurklurk.org/linkers/linkers.html
+
+docs from MS：https://docs.microsoft.com/zh-cn/cpp/cpp/?view=vs-2019
 
