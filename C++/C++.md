@@ -136,7 +136,26 @@ mutable也是为了突破const的限制而设置的。被mutable修饰的变量�
 
 ##### constexpr
 
-向编译器提示变量的值来自于一个提供常量的表达式。
+常量表达式
+
+>值不会改变并在编译过程中就能得到计算结果的表达式。
+
+c++11标准规定：constexpr向编译器提示变量的值来自于一个提供常量的表达式。
+
+- 指针
+
+> 若constexpr声明中定义了一个指针，限定符constexpr仅对指针有效，与指针所指的对象无关。
+
+##### decltype
+
+从表达式的类型推断出要定义的变量的类型
+
+```c++
+const int ci = 0, &cj = ci;
+
+decltype(ci) x = 0;	//const int 
+decltype(cj) y = x; //const int &
+```
 
 
 
@@ -192,6 +211,35 @@ inline和宏的区别：
 - inline函数在编译时展开，宏是预编译时展开
 - 内联函数会进行类型检查、语句是否正确等编译功能，宏没有
 - 宏要小心处理参数，否则可能有二义性问题。
+
+
+
+##### operator new/delete
+
+```c++
+void * operator new(size_t size); //返回一个指针，指向一块未设初值的内存
+
+
+void * buffer = operator new(50 * sizeof(char)); //assign
+operator delete(buffer);	//release
+```
+
+operator new/delete 是可以被重载的。但new operator(用来创建空间和调用构造函数的那个new)不可以被重载。
+
+operator new和malloc类似，只分配内存。
+
+##### placement new
+
+```c++
+#include <new>
+Widege * constructInBuffer(void * buffer, int widgetSize){
+	return new (buffer) Widget(widgetSize);
+}
+```
+
+将Widget对象构造于位于buffer的内存空间上。在共享内存或memory-mapped I/O时有用。placement new做的事就是找到一片内存并返回一个指针。
+
+
 
 #### standard lib
 
@@ -551,7 +599,9 @@ sort(vec.begin(), vec.end(), [](const int & a, const int &b){
 
 
 
-##### Alignment
+##### memory model
+
+- **Alignment**
 
 char, short: start at 2x
 
@@ -559,19 +609,9 @@ int, long, float: start at 4x
 
 double, long long, pointer: start at 8x
 
-
-
 if an object has a 8x filed, then its size will be aligned to 8x
 
 
-
-##### virtual function
-
-1. 基类使用虚析构函数，否则多态情况下，析构时将泄露子类的堆空间。
-
-
-
-##### memory model
 
 - 成员函数
 
@@ -624,11 +664,85 @@ public:
 
 根据下标访问数组时，编译器是根据sizeof(Type)来确定具体应该相对数组首地址偏移多少字节。若使用多态，传递的是派生类的数组，但编译器实际上仍会认为每一个元素大小是基类的大小。但实际上两者往往是不同的，因此会发生错误。
 
+##### default constructor
+
+非必要不提供默认构造函数。有些对象没有外来信息就没法完成初始化动作。但随之而来的创建数组、使用模版、使用虚基类等操作就会受到影响。其中虚基类使用时，所有的派生类都要显示调用有参数的基类构造函数。
+
+##### copy constructor
+
+若用户没有显式定义拷贝构造函数，则当其包含定义了拷贝构造函数的成员或继承了定义拷贝构造函数的基类时，或者包含虚函数时，编译器都会自动补充一个memberwise copy的拷贝构造函数。
+
+如果显示定义拷贝构造函数，则编译器可能会做出named return value(NRV)优化。
+
+- 无论是拷贝构造函数还是默认构造函数，在类中包含虚函数时都会集成初始化vptr的代码。
+
+
+
+##### explicit initialization list
+
+```c++
+class Point{
+public:
+  Point(){}
+  Point(float x = 0.0, float y = 0.0, float z = 0.0): _x(x), _y(y), _z(z){}
+private:
+  float _x, _y, _z;
+};
+
+// main func
+Point p1 = {0.0, 1.0, 2.0}; // explicit initialization list
+```
+
+- drawback:
+
+1. it can be used only if all the class members are public.
+2. it can specify only constant expression(determined during compiling)
+3. not applied automatically by the compiler, the likelihood of failure to initialize an object is heightened.
+
+
+
+##### order in construcor
+
+1. 在派生类的构造函数中，所有的虚基类（取决于一个bool变量标志该派生类是否负责创建虚基类）和其他基类的构造函数都会被调用。
+2. 初始化对象的虚表指针（可能有多个）
+3. 执行成员初始化列表（构造顺序由成员的定义顺序决定，不由初始化列表中的顺序决定）
+4. 执行用户显式定义的代码
+
+
+
+为什么vptr被放在了base class构造之后？
+
+- 因为要保证在基类的构造函数中，this被视作是指向当前基类的（有可能构造函数中还调用了其他虚函数），而不是派生类。
+
+
+
+##### destructor
+
+当用户没有显式定义析构函数，如果基类中包含析构函数或成员变量中包含析构函数，编译器将会自动补充一个构造函数。与是否包含虚函数或者虚基类无关。
+
+
+
+##### 隐式类型转换
+
+```c++
+class Rational{
+	public:
+		operator double() const; //将其转换为double
+};
+
+Rational r(1, 2);
+double d = 0.5 * r;
+```
+
+但可能导致非预期的函数调用
+
+使用`explicit`关键字定义构造函数可以避免隐式类型转换。
+
 #### template
 
 同一个程序中不能定义同名的枚举类型，不同的枚举类型中也不能存在同名的命名常量。
 
-##### 类模板声明和定义
+##### Declear & Define
 
 类模板的声明和定义不能分别放在.h和.cpp文件中
 

@@ -559,9 +559,7 @@ repeatable read 实现:
 
 上述实现方式就是多版本并发控制(MVCC)，是在read commited和repeatable read两种隔离级别过程中记录并使用版本链的这种方式。两种并发级别实现上的不同在于生成readview的时机不同。read commited在每次进行普通select操作前都会生成一个readview，而repeatable view只在第一次普通select前生成readview，之后查询使用它即可。
 
-
-
-
+Good notes: https://www.jianshu.com/p/8845ddca3b23
 
 #### 锁
 

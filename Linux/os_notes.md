@@ -1,3 +1,13 @@
+### OS power on
+
+1. CPU加电
+2. BIOS是写死在内存中的程序，执行BIOS程序执行系统硬件检测，并在物理地址0处初始化中断向量，并读入硬盘0磁道0扇区种的boot区，加载到0x7C00处，并跳转到0x7C00处继续执行
+3. 执行boot区程序，加载setup区程序
+4. 执行setup，由实模式切换到保护模式(https://zhuanlan.zhihu.com/p/42309472)，读入system区
+5. 执行system区的head部分，其中包含main函数。main函数就代表了操作系统的正常运行， 该函数不会退出。
+
+
+
 ### 进程与线程
 
 - 进程是**资源分配**的最小单位，线程是**程序执行**的最小单位。
@@ -66,7 +76,55 @@ tips：
 
 并行：在操作系统中，一组程序按独立异步的速度执行，无论从微观还是宏观，程序都是一起执行的。
 
+#### 硬件同步
 
+##### Test and set
+
+```c
+bool TS(bool * lock){
+  bool old = *lock;
+  lock = true;
+  return old;
+}
+
+//实现互斥:
+do{
+  
+  while(TS(&lock));
+  // critical seciton
+  lock = false;
+  //....
+}while(true);
+```
+
+用一个布尔变量描述资源，为false时表示资源空闲；为true时，表示资源正在被使用。在进入临界区之前，用TS测试lock的值，若为true则循环测试直到TS结果为false。其中TS操作是一个函数执行过程，是不可被分割的。
+
+
+
+##### Compare and swap
+
+```c
+void swap(bool *a ,bool * b){
+	bool tmp;
+  tmp = *a;
+  *a = *b;
+  *b = tmp;
+}
+
+do{
+	key = true;
+  do{
+		swap(&key, &lock);
+  }while(key != false);
+  lock = false;
+}while(true);
+```
+
+为每个临界资源设置一个全局的布尔变量lock，初值为false。每个进程中在用一个局部变量key。keep swapping until key is false。
+
+
+
+*上述两种指令都属于**无锁策略**，能够有效地实现互斥，但是当临界资源忙碌时，必须不停地进行测试，处于“忙等”的状态。此外，很难解决复杂的进程同步问题。
 
 #### mutex/semaphore
 
@@ -250,6 +308,7 @@ ref: https://en.wikipedia.org/wiki/Memory_barrier
 
 
 
+<<<<<<< HEAD
 #### Interrupt vector table
 
 
@@ -275,6 +334,41 @@ ref: https://en.wikipedia.org/wiki/Memory_barrier
 
 
 #### Socket
+=======
+##### 乐观/悲观锁
+
+悲观锁：
+
+>总是假设最坏的情况，每次去拿数据的时候都认为别人会修改，所以每次在拿数据的时候都会上锁，这样别人想拿这个数据就会阻塞直到它拿到锁（**共享资源每次只给一个线程使用，其它线程阻塞，用完后再把资源转让给其它线程**）。
+
+乐观锁：
+
+> 总是假设最好的情况，每次去拿数据的时候都认为别人不会修改，所以不会上锁，但是在更新的时候会判断一下在此期间别人有没有去更新这个数据，可以使用版本号机制和CAS算法实现。
+
+1. 版本号机制
+
+一般是在数据表中加上一个数据版本号version字段，表示数据被修改的次数，当数据被修改时，version值会加一。当线程A要更新数据值时，在读取数据的同时也会读取version值，在提交更新时，若刚才读取到的version值为当前数据库中的version值相等时才更新，否则重试更新操作，直到更新成功。
+
+2. CAS
+
+*already stated above
+
+
+
+乐观锁缺点：
+
+1. 无法解决ABA问题
+2. 循环时间长
+3. 只能保证一个共享变量的原子操作
+
+
+
+tradeoff: CAS适用于写比较少的情况下（多读场景，冲突一般较少），synchronized适用于写比较多的情况下（多写场景，冲突一般较多）
+
+> 对于资源竞争较少（线程冲突较轻）的情况，使用synchronized同步锁进行线程阻塞和唤醒切换以及用户态内核态间的切换操作额外浪费消耗cpu资源；而CAS基于硬件实现，不需要进入内核，不需要切换线程，操作自旋几率较少，因此可以获得更高的性能。
+>
+> 对于资源竞争严重（线程冲突严重）的情况，CAS自旋的概率会比较大，从而浪费更多的CPU资源，效率低于synchronized。
+>>>>>>> 9c44fc23408c6330546658d56689c5aaf5d386bf
 
 
 
@@ -437,15 +531,19 @@ ET模式很大程度上减少了epoll事件的触发次数，因此效率比LT�
 
 
 
-#### Reactor
+##### Reactor
 
-https://segmentfault.com/a/1190000018331509
+同步IO
 
+> Reactor事件中，Demultiplexer负责等待文件描述符或socket为读写操作准备就绪，然后将就绪事件传递给对应的处理器，最后由处理器负责完成实际的读写工作。
 
+##### Proactor
 
-#### Proactor
-
-
+> \- 处理器发起异步读操作（注意：操作系统必须支持异步IO）。在这种情况下，处理器无视IO就绪事件，它关注的是完成事件。
+> \- Demultiplexer等待操作完成事件
+> \- 在Demultiplexer等待过程中，操作系统利用并行的内核线程执行实际的读操作，并将结果数据存入用户自定义缓冲区，最后通知Demultiplexer读操作完成。
+> \- Demultiplexer呼唤处理器。
+> \- 事件处理器处理用户自定义缓冲区中的数据，然后启动一个新的异步操作，并将控制权返回Demultiplexer。
 
 #### Memory-Mapped I/O
 
