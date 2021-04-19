@@ -19,6 +19,10 @@
 6. 套接字Socket：套解口也是一种进程间通信机制，与其他通信机制不同的是，它可用于不同机器间的进程通信。
 7. 信号 ( sinal ) ： 信号是一种比较复杂的通信方式，用于通知接收进程某个事件已经发生。
 
+#### 进程调度
+
+
+
 #### 多线程
 
 和单道程序一样，同一时刻也是只能一个程序占据一颗cpu（多核CPU）。但是和单道程序不同的是，当该程序等待其他资源的时候，它就放弃cpu或者当一个设定的时间到了放弃cpu，让其他程序拥有cpu。该程序不可能一直占据，如此这就避免了cpu空等的情况，让cpu始终有程序运行。因为程序不是一直从开始执行到结束，而是中间走走停停，那就并发问题就会出现。因为当他停止的时候，它所拥有的资源或者它所需要的资源可能会被其他程序修改，这就影响程序运行的正确性。
@@ -70,23 +74,165 @@ tips：
 
 2：mutex（互斥量）也是一种二元的锁机制，只有是（1）和否（0）的两个值，和二元信号量比较相似。但是它和二元信号量不同的是，占有和释放必须是同一个线程。比如互斥量M被线程A占有，那么释放的时候肯定也是A线程释放的。二元信号量则不必如此，一个二元信号量的占有和释放可以是不同线程。相应的内容也可以移步看一下wiki解释--Synchronization 。mutex是可以用于进程也可以用于线程的同步机制。
 
+
+
+### Memory
+
+#### 内存管理
+
+https://www.ibm.com/developerworks/cn/linux/l-linux-slab-allocator/index.html
+
+#### 局部性原理
+
+https://aijishu.com/a/1060000000003348
+
+
+
+#### Page Cache
+
+> Under Linux, the **Page Cache** accelerates many accesses to files on non volatile storage. This happens because, when it first reads from or writes to data media like hard drives, Linux also stores data in **unused areas of memory**, which acts as a cache. If this data is read again later, it can be quickly read from this cache in memory. 
+
+Buffer Cache = Page Cache
+
+- check page cache
+
+```
+free -m
+```
+
+
+
+##### Dirty Page
+
+```bash
+cat /proc/meminfo | grep Dirty
+```
+
+> If data is written, it is first written to the Page Cache and managed as one of its **dirty pages**. *Dirty* means that the data is stored in the Page Cache, but needs to be written to the underlying storage device first. The content of these *dirty pages* is periodically transferred (as well as with the system calls sync or fsync) to the underlying storage device. The system may, in this last instance, be a RAID controller or the hard disk directly.
+
+```bash
+> sync
+```
+
+##### Optimize
+
+> Automatically storing file blocks in the Page Cache is generally quite advantageous. Some data, such as log files or MySQL dump files, are often no longer needed once they have been written. Therefore, such file blocks often use space in the Page Cache unnecessarily. Other file blocks, whose storage would be more advantageous, might be prematurely deleted from the Page Cache by newer log files or MySQL.[[3\]](https://www.thomas-krenn.com/en/wiki/Linux_Page_Cache_Basics#cite_note-3)
+>
+> Periodic execution of logrotate with gzip compression can help with log files, somewhat. When a 500-megabyte log file is compressed into 10 megabytes by logrotate and gzip, the original log file becomes invalid along with its cache space. 490 megabytes in the Page Cache will then become available by doing so. The danger of a continuously growing log file displacing more useful file blocks from the Page Cache is reduced thereby.
+>
+> Therefore, it is completely reasonable, if some applications would normally not store certain files and file blocks in the cache. There is already such a patch available for rsync.[[4\]](https://www.thomas-krenn.com/en/wiki/Linux_Page_Cache_Basics#cite_note-4)
+
+
+
+#### MMU
+
+MMU是Memory Management Unit的缩写，中文名是**内存管理单元**，它是中央处理器（CPU）中用来管理虚拟存储器、物理存储器的控制线路，同时也负责虚拟地址映射为物理地址，以及提供硬件机制的内存访问授权，多用户多进程操作系统。
+TLB(Translation Lookaside Buffer)**传输后备缓冲器**是一个内存管理单元用于改进虚拟地址到物理地址转换速度的缓存。TLB是一个小的，虚拟寻址的缓存，其中每一行都保存着一个由单个PTE组成的块。如果没有TLB，则每次取数据都需要两次访问内存，即查页表获得物理地址和取数据。
+
+#### TLB
+
+ 在现代处理器中,软件使用**虚拟地址**访问内存,而处理器的**MMU单元负责把虚拟地址转换成物理地址**,为了完成这个映射过程,软件和硬件共同来**维护一个多级映射的页表**。当处理器发现页表中无法映射到对应的物理地址时,会触发一个缺页异常,挂起出错的进程,操作系统软件需要处理这个缺页异常。我们之前有提到过二级页表的查询过程,为了完成虚拟地址到物理地址的转换,查询页表需要两次访问内存,即一级页表和二级页表都是存放在内存中的。 
+
+TLB( Translation Look- aside buffer)专门用于缓存内存中的页表项,**一般在MMU单元内部**。TLB是一个很小的 cache,TLB表项( TLB entry)数量比较少,每个TLB表项包含一个页面的相关信息,例如有效位、虚拟页号、修改位、物理页帧号等。当处理器要访问一个虚拟地址时,首先会在TLB中查询。如果TLB表项中没有相应的表项,称为TLB Miss,那么就需要访问页表来计算出相应的物理地址。如果TLB表项中有相应的表项,那么直接从TLB表项中获取物理地址,称为TLB命中。
+TLB内部存放的基本单位是TLB表项,TLB容量越大,所能存放的TLB表项就越多,TLB命中率就越高,但是TLB的容量是有限的。目前 Linux内核默认采用4KB大小的小页面,如果一个程序使用512个小页面,即2MB大小,那么至少需要512个TLB表项才能保证不会出现 TLB Miss的情况。但是如果使用2MB大小的**大页**,那么只需要一个TLB表项就可以保证不会出现 TLB Miss的情况。对于消耗内存以GB为单位的大型应用程序,还可以使用以1GB为单位的大页,从而减少 TLB Miss的情况。
+
+
+
+#### Memory Barrier
+
+Processor #1:
+
+```
+ while (f == 0);
+ // Memory fence required here
+ print x;
+```
+
+Processor #2:
+
+```
+ x = 42;
+ // Memory fence required here
+ f = 1;
+```
+
+One might expect the print statement to always print the number "42"; however, if processor #2's store operations are executed out-of-order, it is possible for `f` to be updated *before* `x`, and the print statement might therefore print "0". Similarly, processor #1's load operations may be executed out-of-order and it is possible for `x` to be read *before* `f` is checked, and again the print statement might therefore print an unexpected value.
+
+
+
+Synchronization primitives such as [mutexes](https://en.wikipedia.org/wiki/Mutual_exclusion) and [semaphores](https://en.wikipedia.org/wiki/Semaphore_(programming)) are provided to synchronize access to resources from parallel threads of execution. These primitives are usually implemented with the memory barriers required to provide the expected memory visibility [semantics](https://en.wikipedia.org/wiki/Semantics#Computer_science). In such environments explicit use of memory barriers is not generally necessary.
+
+
+
+Just as programming language semantics are defined at a different [level of abstraction](https://en.wikipedia.org/wiki/Abstraction_layer) than [machine language](https://en.wikipedia.org/wiki/Machine_language) [opcodes](https://en.wikipedia.org/wiki/Opcode), a programming environment's memory model is defined at a different level of abstraction than that of a hardware memory model.
+
+
+
+##### volatile
+
+Memory barrier instructions address reordering effects only at the hardware level. Compilers may also reorder instructions as part of the [program optimization](https://en.wikipedia.org/wiki/Program_optimization) process. Although the effects on parallel program behavior can be similar in both cases, in general it is necessary to take separate measures to inhibit compiler reordering optimizations for data that may be shared by multiple threads of execution. Note that such measures are usually necessary only for data which is not protected by synchronization primitives such as those discussed in the prior section.
+
+In [C](https://en.wikipedia.org/wiki/C_(programming_language)) and [C++](https://en.wikipedia.org/wiki/C%2B%2B), the `volatile` keyword was intended to allow C and C++ programs to directly access [memory-mapped I/O](https://en.wikipedia.org/wiki/Memory-mapped_I/O). Memory-mapped I/O generally requires that the reads and writes specified in source code happen in the exact order specified with no omissions. Omissions or reorderings of reads and writes by the compiler would break the communication between the program and the device accessed by memory-mapped I/O.
+
+However, The keyword `volatile` *does not guarantee a memory barrier* to enforce cache-consistency. Therefore, the use of "volatile" alone is not sufficient to use a variable for inter-thread communication on all systems and processors.
+
+
+
+
+
+##### Double-checked locking
+
+It is typically used to reduce locking overhead when implementing "[lazy initialization](https://en.wikipedia.org/wiki/Lazy_initialization)" in a multi-threaded environment, especially as part of the [Singleton pattern](https://en.wikipedia.org/wiki/Singleton_pattern). Lazy initialization avoids initializing a value until the first time it is accessed.
+
+C++11 and beyond also provide a built-in double-checked locking pattern in the form of `std::once_flag` and `std::call_once`:
+
+```c++
+#include <mutex>
+#include <optional> // Since C++17
+
+// Singleton.h
+class Singleton {
+ public:
+  static Singleton* GetInstance();
+ private:
+  Singleton() = default;
+
+  static std::optional<Singleton> s_instance;
+  static std::once_flag s_flag;
+};
+
+// Singleton.cpp
+std::optional<Singleton> Singleton::s_instance;
+std::once_flag Singleton::s_flag{};
+
+Singleton* Singleton::GetInstance() {
+  std::call_once(Singleton::s_flag,
+                 []() { s_instance.emplace(Singleton{}); });
+  return &*s_instance;
+}
+```
+
+ref: https://en.wikipedia.org/wiki/Memory_barrier
+
+
+
 ### 中断
 
 #### Hardware/Software Interrupt
 
-1. Hardware interrupts are issued by hardware devices like disk, network cards, keyboards, clocks, etc. Each device or set of devices will have its own IRQ (Interrupt ReQuest) line. Based on the IRQ the CPU will dispatch the request to the appropriate hardware driver. (Hardware drivers are usually subroutines within the kernel rather than a separate process.)
+1. **Hardware** interrupts are issued by hardware devices like disk, network cards, keyboards, clocks, etc. Each device or set of devices will have its own IRQ (Interrupt ReQuest) line. Based on the IRQ the CPU will **dispatch the request to the appropriate hardware driver**. (Hardware drivers are usually subroutines **within the kernel** rather than a separate process.)
 
 2. The driver which handles the interrupt is run on the CPU. The CPU is interrupted from what it was doing to handle the interrupt, so nothing additional is required to get the CPU's attention. In multiprocessor systems, an interrupt will usually only interrupt one of the CPUs. (As a special cases mainframes have hardware channels which can deal with multiple interrupts without support from the main CPU.)
 
-3. The hardware interrupt interrupts the CPU directly. This will cause the relevant code in the kernel process to be triggered. For processes that take some time to process, the interrupt code may allow itself to be interrupted by other hardware interrupts.
+3. The **hardware interrupt interrupts the CPU directly**. This will cause the relevant **code in the kernel process to be triggered**. For processes that take some time to process, the interrupt code may allow itself to be interrupted by other hardware interrupts.
 
    In the case of timer interrupt, the kernel scheduler code may suspend the process that was running and allow another process to run. It is the presence of the scheduler code which enables multitasking.
 
 
 
-1. Typically software interrupts are requests for I/O (Input or Output). These will call kernel routines which will schedule the I/O to occur. For some devices the I/O will be done immediately, but disk I/O is usually queued and done at a later time. Depending on the I/O being done, the process may be suspended until the I/O completes, causing the kernel scheduler to select another process to run. I/O may occur between processes and the processing is usually scheduled in the same manner as disk I/O.
+1. Typically software interrupts are **requests for I/O** (Input or Output). These will call kernel routines which will schedule the I/O to occur. For some devices the I/O will be done immediately, but disk I/O is usually queued and done at a later time. Depending on the I/O being done, the process may be suspended until the I/O completes, causing the kernel scheduler to select another process to run. I/O may occur between processes and the processing is usually scheduled in the same manner as disk I/O.
 
-2. The software interrupt only talks to the kernel. It is the responsibility of the kernel to schedule any other processes which need to run. This could be another process at the end of a pipe. Some kernels permit some parts of a device driver to exist in user space, and the kernel will schedule this process to run when needed.
+2. The software interrupt only talks to the **kernel**. It is the responsibility of the kernel to schedule any other processes which need to run. This could be another process at the end of a pipe. Some kernels permit some parts of a device driver to exist in user space, and the kernel will schedule this process to run when needed.
 
    It is correct that a software interrupt doesn't directly interrupt the CPU. Only code that is currently running code can generate a software interrupt. The interrupt is a request for the kernel to do something (usually I/O) for running process. A special software interrupt is a Yield call, which requests the kernel scheduler to check to see if some other process can run.
 
@@ -98,9 +244,37 @@ tips：
 
 1. For I/O requests, the kernel delegates the work to the appropriate kernel driver. The routine may queue the I/O for later processing (common for disk I/O), or execute it immediately if possible. The queue is handled by the driver, often when responding to hardware interrupts. When one I/O completes, the next item in the queue is sent to the device.
 
-2. Yes, software interrupts avoid the hardware signalling step. The process generating the software request must be a currently running process, so they don't interrupt the CPU. However, they do interrupt the flow of the calling code.
+2. Yes, **software interrupts avoid the hardware signalling step**. The **process generating the software request must be a currently running process**, so they **don't interrupt the CPU**. However, they do interrupt the flow of the calling code.
 
    If hardware needs to get the CPU to do something, it causes the CPU to interrupt its attention to the code it is running. The CPU will push its current state on a stack so that it can later return to what it was doing. The interrupt could stop: a running program; the kernel code handling another interrupt; or the idle process.
+
+
+
+#### Interrupt vector table
+
+
+
+
+
+### IPC
+
+#### Pipe
+
+
+
+#### MQ
+
+
+
+#### Shared Memory
+
+
+
+#### Signal
+
+
+
+#### Socket
 
 
 
@@ -273,6 +447,16 @@ https://segmentfault.com/a/1190000018331509
 
 
 
+#### Memory-Mapped I/O
+
+>Memory-mapped I/O uses the same [address space](https://en.wikipedia.org/wiki/Address_space) to address both [memory](https://en.wikipedia.org/wiki/Computer_memory) and [I/O devices](https://en.wikipedia.org/wiki/I/O_device). The memory and [registers](https://en.wikipedia.org/wiki/Register_(computing)) of the I/O devices are mapped to (associated with) address values. So when an address is accessed by the CPU, it may refer to a portion of [physical RAM](https://en.wikipedia.org/wiki/Physical_memory), or it can instead refer to memory of the I/O device. Thus, the CPU instructions used to access the memory can also be used for accessing devices. Each I/O device monitors the CPU's address bus and responds to any CPU access of an address assigned to that device, connecting the [data bus](https://en.wikipedia.org/wiki/Bus_(computing)) to the desired device's [hardware register](https://en.wikipedia.org/wiki/Hardware_register). 
+
+
+
+- Port-Mapped I/O
+
+> Port-mapped I/O often uses a special class of CPU instructions designed specifically for performing I/O, such as the `in` and `out` instructions found on microprocessors based on the [x86](https://en.wikipedia.org/wiki/X86) and [x86-64](https://en.wikipedia.org/wiki/X86-64) architectures. Different forms of these two instructions can copy one, two or four bytes (`outb`, `outw` and `outl`, respectively) between the [EAX register](https://en.wikipedia.org/wiki/EAX_register) or one of that register's subdivisions on the CPU and a specified I/O port which is assigned to an I/O device. I/O devices have a separate address space from general memory, either accomplished by an extra "I/O" pin on the CPU's physical interface, or an entire [bus](https://en.wikipedia.org/wiki/Computer_bus) dedicated to I/O
+
 
 
 ### Command
@@ -309,6 +493,10 @@ load averages: 2.67 2.41 2.32
 
 
 ### Critical Directory
+
+#### /proc
+
+较为特殊的内存文件系统。
 
 #### /var
 

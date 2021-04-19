@@ -2,7 +2,9 @@
 
 https://coolshell.cn/articles/5426.html
 
+插件库：
 
+https://vimawesome.com/plugin/c-vim-the-thing-itself
 
 ## 配置环境
 
@@ -342,6 +344,23 @@ def PythonSysPath( **kwargs ):
 ```
 
 
+
+#### Cannot Load Python
+
+重新编译vim
+
+```
+./configure --with-features=huge \
+--enable-multibyte \
+--enable-gtk3-check \
+--enable-rubyinterp=yes \
+--with-python3-config-dir=/home/lixiuwen01/.jumbo/lib/python3.6/config-3.6m-x86_64-linux-gnu \
+--with-python3-command=python3.6 \
+--enable-python3interp=yes \
+--enable-perlinterp=yes \
+--enable-luainterp=yes \
+--enable-cscope
+```
 
 
 

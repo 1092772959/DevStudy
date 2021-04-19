@@ -1,3 +1,7 @@
+阿里MYSQL技术博客：http://mysql.taobao.org/monthly/2016/02/02/
+
+
+
 ### 常用指令
 
 终端可使用mycli作为客户端连接数据库；可视化界面可使用navicat，但是要教育注册或者破解版
@@ -745,7 +749,7 @@ update ...;
 >**注意:** 
 >
 >1. 如果在使用like操作符时,后面的没有使用通用匹配符效果是和=一致的,SELECT * FROM products WHERE products.prod_name like '1000';
->   只能匹配的结果为1000,而不能匹配像JetPack 1000这样的结果.
+>     只能匹配的结果为1000,而不能匹配像JetPack 1000这样的结果.
 >2. 注意NULL,%通配符可以匹配任意字符,但是不能匹配NULL,也就是说SELECT * FROM products WHERE products.prod_name like '%;是匹配不到products.prod_name为NULL的的记录.
 
 
